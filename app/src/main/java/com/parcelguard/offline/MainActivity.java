@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean working = new AtomicBoolean(false);
     private ProcessCameraProvider cameraProvider;
-    private Camera boundCamera;
+    private androidx.camera.core.Camera boundCamera;
     private VideoCapture<Recorder> videoCapture;
     private Recording recording;
     private boolean videoSupported = false;
@@ -389,7 +389,7 @@ public class MainActivity extends AppCompatActivity {
             dlg.setNeutralButton("เพิ่มเติม",(d,w)->new AlertDialog.Builder(this).setItems(new String[]{"เปิดวิดีโอถุงนี้", "ย้ายไปถังขยะ"},(d2,index)->{
                 if(index==0)playVideo(bagId,offset);else{
                     new AlertDialog.Builder(this).setMessage("ย้าย "+tracking+" ไปถังขยะหรือไม่?")
-                        .setNegativeButton("ยกเลิก",null).setPositiveButton("ย้าย",(d3,w)->{db.trash(tracking);showHistory();}).show();
+                        .setNegativeButton("ยกเลิก",null).setPositiveButton("ย้าย",(d3,whichButton)->{db.trash(tracking);showHistory();}).show();
                 }
             }).show());
         }
