@@ -5,7 +5,7 @@
  <queries>
   <intent><action android:name="android.intent.action.TTS_SERVICE"/></intent>
  </queries>
- <application android:allowBackup="false" android:label="ParcelGuard Offline" android:theme="@style/AppTheme" android:usesCleartextTraffic="false">
+ <application android:allowBackup="false" android:label="ParcelGuard" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:theme="@style/AppTheme" android:usesCleartextTraffic="false">
   <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">
    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/>
   </provider>

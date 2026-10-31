@@ -5,6 +5,9 @@ import android.content.*;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.*;
+import android.graphics.drawable.GradientDrawable;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
 import android.media.Image;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
@@ -66,13 +69,17 @@ public class MainActivity extends AppCompatActivity {
     private volatile boolean thaiOfflineVoiceReady = false;
     private boolean speakAfterSave = true;
     private PreviewView preview;
-    private TextView status, count, bagLabel, liveTracking;
+    private TextView status, count, bagLabel, liveTracking, goalLabel;
+    private ProgressBar bagProgress;
     private EditText query, expectedEntry, dateFrom, dateTo;
     private LinearLayout root;
-    private final int BG = Color.rgb(10, 20, 37);
-    private final int PANEL = Color.rgb(24, 43, 67);
-    private final int SKY = Color.rgb(0, 187, 237);
+    private final int BG = 0xFF0A0F15;
+    private final int PANEL = 0xFF161E26;
+    private final int PANEL2 = 0xFF202A34;
+    private final int ORANGE = 0xFFFF9009;
     private final int WHITE = Color.WHITE;
+    private final int MUTED = 0xFFAFBAC6;
+    private final int GREEN = 0xFF12C987;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -94,25 +101,86 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView text(String value, int size) {
         TextView v = new TextView(this); v.setText(value); v.setTextSize(size);
-        v.setTextColor(WHITE); v.setPadding(dp(8), dp(9), dp(8), dp(9)); return v;
+        v.setTextColor(WHITE); v.setPadding(dp(8), dp(7), dp(8), dp(7));
+        v.setGravity(Gravity.CENTER_VERTICAL);return v;
     }
     private int dp(int value) {return (int) (value * getResources().getDisplayMetrics().density + 0.5f);}
-    private Button button(String text, Runnable action) {
-        Button b = new Button(this); b.setAllCaps(false); b.setText(text);
-        b.setOnClickListener(v -> action.run()); return b;
+    private GradientDrawable shape(int fill, int border, int radius) {
+        GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(radius));
+        if(border!=0)d.setStroke(dp(1),border);return d;
     }
-    private void addButton(String text, Runnable runnable) {root.addView(button(text, runnable));}
-    private void base(String title) {
-        root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(12), dp(10), dp(12), dp(20)); root.setBackgroundColor(BG);
-        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(root); setContentView(scroll);
-        root.addView(text("📦 ParcelGuard Offline 0.2.2", 23));
-        root.addView(text(title, 13));
-        LinearLayout tabs = new LinearLayout(this); tabs.setOrientation(LinearLayout.HORIZONTAL);
-        Button scan = button("สแกน", this::showScan); Button history = button("ประวัติ", this::showHistory);
-        Button trash = button("ถังขยะ", this::showTrash); Button settings = button("ตั้งค่า", this::showSettings);
-        for (Button b : new Button[]{scan, history, trash, settings}) tabs.addView(b, new LinearLayout.LayoutParams(0, dp(52), 1));
-        root.addView(tabs);
+    private LinearLayout card(int inset) {
+        LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(inset),dp(inset),dp(inset),dp(inset));
+        c.setBackground(shape(PANEL,0xFF35414D,16));return c;
+    }
+    private LinearLayout horizontal() {LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);return r;}
+    private LinearLayout.LayoutParams spaced(int height,int top) {
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,height<0?height:dp(height));p.topMargin=dp(top);return p;
+    }
+    private TextView prominent(String value,int size,int color) {
+        TextView t=text(value,size);t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);t.setTextColor(color);return t;
+    }
+    private Button button(String name, Runnable action) {
+        Button b=new Button(this);b.setAllCaps(false);b.setText(name);b.setTextSize(14);
+        b.setTextColor(WHITE);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        b.setBackground(shape(PANEL2,0xFF435261,12));b.setBackgroundTintList(null);b.setOnClickListener(v->action.run());
+        b.setPadding(dp(8),dp(8),dp(8),dp(8));return b;
+    }
+    private Button orangeButton(String name,Runnable action){Button b=button(name,action);b.setTextColor(0xFF17191B);b.setBackground(shape(ORANGE,0,12));b.setBackgroundTintList(null);return b;}
+    private void addButton(String name,Runnable action){root.addView(button(name,action),spaced(48,8));}
+    private void base(String subtitle) {
+        LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(BG);
+        getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
+        LinearLayout top=horizontal();top.setPadding(dp(16),dp(10),dp(12),dp(7));
+        ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);
+        top.addView(logo,new LinearLayout.LayoutParams(dp(45),dp(45)));
+        LinearLayout brand=new LinearLayout(this);brand.setOrientation(LinearLayout.VERTICAL);
+        TextView title=prominent("ParcelGuard",23,WHITE);
+        SpannableString colored=new SpannableString("ParcelGuard");colored.setSpan(new ForegroundColorSpan(ORANGE),6,11,0);title.setText(colored);
+        brand.addView(title);
+        TextView sub=text("ระบบตรวจสอบการแพ็คพัสดุ",11);sub.setTextColor(MUTED);sub.setPadding(dp(8),0,0,0);brand.addView(sub);
+        top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+        Button settings=button("⚙",this::showSettings);settings.setTextSize(23);
+        settings.setBackground(shape(BG,0,10));top.addView(settings,new LinearLayout.LayoutParams(dp(46),dp(46)));
+        shell.addView(top,new LinearLayout.LayoutParams(-1,dp(72)));
+        ScrollView sc=new ScrollView(this);sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);
+        root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(14),dp(8),dp(14),dp(22));sc.addView(root);
+        shell.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout bottom=horizontal();bottom.setPadding(dp(7),dp(7),dp(7),dp(9));bottom.setBackground(shape(0xFF0E151D,0xFF263441,0));
+        String[] names={"⌂  แพ็คพัสดุ","▤  ประวัติ","▥  รายงาน","⚙  ตั้งค่า"};
+        Runnable[] actions={this::showScan,this::showHistory,this::showReports,this::showSettings};
+        for(int i=0;i<names.length;i++){
+            Button nav=button(names[i],actions[i]);nav.setTextSize(11);nav.setPadding(0,0,0,0);
+            nav.setTextColor((i==0 && subtitle.contains("ถุง")) ? ORANGE : MUTED);
+            nav.setBackground(shape(0xFF111A23,0,9));
+            LinearLayout.LayoutParams navP=new LinearLayout.LayoutParams(0,dp(48),1);navP.setMargins(dp(2),0,dp(2),0);
+            bottom.addView(nav,navP);
+        }
+        shell.addView(bottom,new LinearLayout.LayoutParams(-1,dp(66)));
+        setContentView(shell);
+        if(!subtitle.isEmpty() && !subtitle.contains("ถุงใหญ่")) {
+            TextView heading=prominent(subtitle,18,WHITE);root.addView(heading,spaced(-2,2));
+        }
+    }
+    private void showReports(){
+        pauseCamera();base("รายงานและหลักฐาน");
+        LinearLayout summary=card(14);summary.addView(prominent("รายงานการแพ็ค",18,ORANGE));
+        StringBuilder lines=new StringBuilder();int totalBags=0,totalScans=0;
+        try(Cursor c=db.bagList()){
+            while(c.moveToNext()){totalBags++;int count=db.count(c.getString(0));totalScans+=count;
+                lines.append(c.getString(0)).append("  •  ").append(count).append(" ชิ้น")
+                    .append(c.getInt(2)==1?"  [ปิด]":"  [เปิด]").append("\n");}
+        }
+        summary.addView(prominent(totalBags+" ถุง  •  "+totalScans+" พัสดุ",21,WHITE));
+        root.addView(summary,spaced(-2,10));
+        root.addView(prominent("รายการถุง",16,WHITE),spaced(-2,14));
+        TextView all=text(lines.length()==0?"ยังไม่มีข้อมูล":lines.toString(),13);all.setTextColor(MUTED);root.addView(all);
+        addButton("ส่งออก ZIP หลักฐานทั้งหมด",()->exportZip(null));
+        addButton("ส่งออก ZIP ถุงปัจจุบัน",()->exportZip(bag));
+        addButton("ดูสถานะถุงทั้งหมด",this::showBags);
+        root.addView(text("ข้อมูลอยู่ในมือถือเครื่องนี้เท่านั้น • ควรสำรองหลักฐานเป็นประจำ",12));
     }
     private void pauseCamera() {
         if (cameraProvider != null) cameraProvider.unbindAll();
@@ -121,61 +189,159 @@ public class MainActivity extends AppCompatActivity {
         working.set(false); active = false;
     }
     private void showScan() {
-        if (root != null) pauseCamera();
-        active = true;
-        base("ตรวจพัสดุก่อนใส่ถุงใหญ่ • บันทึกภาพออฟไลน์");
-        Spinner carrierSelector = new Spinner(this);
-        String[] options = {"SPX", "J&T", "Flash", "LEX", "Other"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, options);
+        if(root!=null)pauseCamera();active=true;
+        base("ตรวจพัสดุก่อนใส่ถุงใหญ่");
+        LinearLayout intro=card(12);
+        LinearLayout introRow=horizontal();
+        TextView scanMark=prominent("▥",28,ORANGE);introRow.addView(scanMark,new LinearLayout.LayoutParams(dp(45),-2));
+        LinearLayout introText=new LinearLayout(this);introText.setOrientation(LinearLayout.VERTICAL);
+        introText.addView(prominent("สแกนก่อนใส่ถุง",19,WHITE));
+        TextView introSub=text("สแกนบาร์โค้ดเพื่อบันทึกภาพหลักฐาน",12);introSub.setTextColor(MUTED);introText.addView(introSub);
+        introRow.addView(introText,new LinearLayout.LayoutParams(0,-2,1));intro.addView(introRow);
+        root.addView(intro,spaced(-2,3));
+
+        LinearLayout current=card(12);
+        LinearLayout bagRow=horizontal();
+        LinearLayout bagInfo=new LinearLayout(this);bagInfo.setOrientation(LinearLayout.VERTICAL);
+        bagLabel=prominent("",14,WHITE);bagLabel.setSingleLine(true);bagLabel.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        bagInfo.addView(bagLabel);
+        TextView service=text("ขนส่งสำหรับถุงใหม่",12);service.setTextColor(MUTED);bagInfo.addView(service);
+        bagRow.addView(bagInfo,new LinearLayout.LayoutParams(0,-2,1));
+        Spinner carrierSelector=new Spinner(this);
+        String[] options={"SPX","J&T","Flash","LEX","Other"};
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,options){
+            @Override public View getView(int position,View convert,android.view.ViewGroup parent){
+                TextView v=text(getItem(position),15);v.setTextColor(ORANGE);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                v.setGravity(Gravity.CENTER);v.setBackground(shape(PANEL2,0xFF53606E,8));return v;
+            }
+        };
         carrierSelector.setAdapter(adapter);
-        for (int i=0; i<options.length; i++) if(options[i].equals(carrier)) carrierSelector.setSelection(i);
-        carrierSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            public void onNothingSelected(android.widget.AdapterView<?> a) {}
-            public void onItemSelected(android.widget.AdapterView<?> a, View v, int i, long id) {carrier = options[i];}
+        for(int i=0;i<options.length;i++)if(options[i].equals(carrier))carrierSelector.setSelection(i);
+        carrierSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> a){}
+            public void onItemSelected(android.widget.AdapterView<?> a,View v,int i,long id){carrier=options[i];}
         });
-        root.addView(text("ขนส่งสำหรับถุงใหม่", 13)); root.addView(carrierSelector);
-        bagLabel = text("", 17); root.addView(bagLabel);
-        count = text("", 20); root.addView(count);
-        LinearLayout row = new LinearLayout(this);
-        row.addView(button("+ เปิดถุงใหม่", () -> createNewBag(true)), new LinearLayout.LayoutParams(0, dp(52), 1));
-        row.addView(button("ปิดถุง", this::confirmClose), new LinearLayout.LayoutParams(0, dp(52), 1));
-        root.addView(row);
-        expectedEntry = new EditText(this); expectedEntry.setSingleLine(true); expectedEntry.setInputType(InputType.TYPE_CLASS_NUMBER);
-        expectedEntry.setTextColor(WHITE); expectedEntry.setHintTextColor(Color.LTGRAY);
-        expectedEntry.setHint("จำนวนที่ควรมีในถุง (0=ไม่กำหนด)");
-        expectedEntry.setText(String.valueOf(db.expected(bag))); root.addView(expectedEntry);
-        addButton("กำหนดจำนวนเป้าหมาย", () -> {
-            try {int v=Integer.parseInt(expectedEntry.getText().toString().trim());
-                if(v<0) throw new NumberFormatException(); db.setExpected(bag,v); updateCount();
-            } catch(NumberFormatException e) {message("ระบุจำนวนเต็ม 0 หรือมากกว่า");}
-        });
-        root.addView(text("กล้องตรวจพัสดุ (วางมือถือบนขาตั้งเหนือโต๊ะ)", 17));
-        android.widget.FrameLayout cameraBox = new android.widget.FrameLayout(this);
-        preview = new PreviewView(this); preview.setBackgroundColor(Color.BLACK);
-        cameraBox.addView(preview,new android.widget.FrameLayout.LayoutParams(-1,-1));
-        liveTracking = text("Tracking: —", 16); liveTracking.setBackgroundColor(0xC7000000);
-        android.widget.FrameLayout.LayoutParams trackLayout = new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
-        cameraBox.addView(liveTracking,trackLayout);
-        root.addView(cameraBox,new LinearLayout.LayoutParams(-1,dp(310)));
-        status = text("กำลังขอใช้กล้อง...", 14); root.addView(status);
-        addButton("เปิด/ปิดไฟฉาย", () -> {torch=!torch; if(boundCamera!=null && boundCamera.getCameraInfo().hasFlashUnit()) boundCamera.getCameraControl().enableTorch(torch);});
-        addButton("▶ เริ่ม/หยุดวิดีโอถุงนี้ (ทดลอง)", () -> {
-            if(recording!=null) stopVideo(); else startVideo();
-        });
-        addButton("ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน", this::manageCurrentBagVideo);
-        root.addView(text("วิดีโอ 1 คลิปต่อถุงเท่านั้น หากหยุดแล้วสามารถเปิดดูหรือแชร์คลิปเดิมได้ แต่จะบันทึกคลิปใหม่ทับหลักฐานไม่ได้โดยอัตโนมัติ", 12));
-        root.addView(text("หากมือถือไม่รองรับ Preview + Scan + Video พร้อมกัน ระบบจะใช้ภาพถ่ายอย่างเดียว", 12));
-        root.addView(text("ยกพัสดุออกจากกรอบกล้อง ก่อนวางชิ้นถัดไป • สแกนสำเร็จเมื่อบันทึกภาพลงเครื่องแล้ว", 13));
+        bagRow.addView(carrierSelector,new LinearLayout.LayoutParams(dp(87),dp(45)));
+        current.addView(bagRow);
+        LinearLayout countRow=horizontal();
+        count=prominent("",22,ORANGE);countRow.addView(count,new LinearLayout.LayoutParams(0,-2,1));
+        goalLabel=text("",12);goalLabel.setTextColor(MUTED);countRow.addView(goalLabel);
+        current.addView(countRow);
+        bagProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        bagProgress.setMax(100);bagProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(ORANGE));
+        bagProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF38434F));
+        current.addView(bagProgress,spaced(6,3));
+        root.addView(current,spaced(-2,10));
+
+        LinearLayout actions=horizontal();
+        Button open=orangeButton("✚  เปิดถุงใหม่",()->createNewBag(true));
+        LinearLayout.LayoutParams a=new LinearLayout.LayoutParams(0,dp(56),1);a.rightMargin=dp(5);actions.addView(open,a);
+        Button close=button("▣  ปิดถุง",this::confirmClose);
+        LinearLayout.LayoutParams b=new LinearLayout.LayoutParams(0,dp(56),1);b.leftMargin=dp(5);actions.addView(close,b);
+        root.addView(actions,spaced(-2,10));
+
+        LinearLayout target=card(10);
+        LinearLayout targetRow=horizontal();
+        TextView targetLabel=text("เป้าหมาย (ชิ้น)",13);targetLabel.setTextColor(MUTED);
+        targetRow.addView(targetLabel,new LinearLayout.LayoutParams(0,-2,1));
+        expectedEntry=new EditText(this);expectedEntry.setSingleLine(true);expectedEntry.setInputType(InputType.TYPE_CLASS_NUMBER);
+        expectedEntry.setTextColor(WHITE);expectedEntry.setTextSize(17);expectedEntry.setGravity(Gravity.CENTER);
+        expectedEntry.setBackground(shape(0xFF0D141B,0xFF485562,9));expectedEntry.setHintTextColor(MUTED);
+        expectedEntry.setText(String.valueOf(db.expected(bag)));targetRow.addView(expectedEntry,new LinearLayout.LayoutParams(dp(68),dp(42)));
+        Button saveGoal=button("ตั้งค่า",()->{try{int n=Integer.parseInt(expectedEntry.getText().toString().trim());
+            if(n<0)throw new NumberFormatException();db.setExpected(bag,n);updateCount();message("ตั้งเป้าหมายแล้ว "+n+" ชิ้น");
+        }catch(NumberFormatException e){message("ระบุจำนวนเต็มตั้งแต่ 0 ขึ้นไป");}});
+        LinearLayout.LayoutParams sg=new LinearLayout.LayoutParams(dp(80),dp(42));sg.leftMargin=dp(8);targetRow.addView(saveGoal,sg);
+        target.addView(targetRow);root.addView(target,spaced(-2,10));
+
+        LinearLayout cameraCard=card(8);
+        LinearLayout camHead=horizontal();
+        TextView label=prominent("▣  กล้องตรวจพัสดุ",16,WHITE);camHead.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+        TextView ready=text("● อัตโนมัติ",11);ready.setTextColor(GREEN);camHead.addView(ready);
+        cameraCard.addView(camHead);
+        FrameLayout cameraBox=new FrameLayout(this);
+        preview=new PreviewView(this);preview.setBackgroundColor(Color.BLACK);
+        cameraBox.addView(preview,new FrameLayout.LayoutParams(-1,-1));
+        View corners=new View(this){ Paint line=new Paint(3);@Override protected void onDraw(Canvas c){super.onDraw(c);
+            float d=dp(16),length=dp(26),w=getWidth(),h=getHeight();line.setColor(WHITE);line.setStrokeWidth(dp(3));
+            line.setStrokeCap(Paint.Cap.ROUND);line.setStyle(Paint.Style.STROKE);
+            c.drawLine(d,d,d+length,d,line);c.drawLine(d,d,d,d+length,line);
+            c.drawLine(w-d,d,w-d-length,d,line);c.drawLine(w-d,d,w-d,d+length,line);
+            c.drawLine(d,h-d,d+length,h-d,line);c.drawLine(d,h-d,d,h-d-length,line);
+            c.drawLine(w-d,h-d,w-d-length,h-d,line);c.drawLine(w-d,h-d,w-d,h-d-length,line);
+        }};
+        cameraBox.addView(corners,new FrameLayout.LayoutParams(-1,-1));
+        liveTracking=text("Tracking: —",14);liveTracking.setTextColor(WHITE);
+        liveTracking.setBackground(shape(0xDD111820,0,7));
+        FrameLayout.LayoutParams tr=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
+        tr.setMargins(dp(12),dp(14),dp(12),0);cameraBox.addView(liveTracking,tr);
+        cameraCard.addView(cameraBox,spaced(310,8));
+        status=prominent("กำลังเปิดกล้อง...",13,WHITE);
+        status.setBackground(shape(0xFF263541,0,10));
+        cameraCard.addView(status,spaced(-2,9));
+        LinearLayout controls=horizontal();
+        Button light=button("ϟ  ไฟฉาย",()->{torch=!torch;if(boundCamera!=null&&boundCamera.getCameraInfo().hasFlashUnit())
+            boundCamera.getCameraControl().enableTorch(torch);});
+        controls.addView(light,new LinearLayout.LayoutParams(0,dp(61),1));
+        Button shutter=orangeButton("▣  ถ่ายภาพ",this::manualCaptureDialog);shutter.setTextSize(16);
+        LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(61),1.2f);cp.setMargins(dp(7),0,dp(7),0);controls.addView(shutter,cp);
+        Button vid=button("▣  วิดีโอ",()->{if(recording!=null)stopVideo();else startVideo();});
+        controls.addView(vid,new LinearLayout.LayoutParams(0,dp(61),1));
+        cameraCard.addView(controls,spaced(-2,10));
+        root.addView(cameraCard,spaced(-2,12));
+        addButton("▶  ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน",this::manageCurrentBagVideo);
+        TextView note=text("กล้องสแกนอัตโนมัติเมื่อวางพัสดุใต้กล้อง • มีเสียง 'บันทึกแล้ว' เมื่อเก็บหลักฐานสำเร็จ • โหมดวิดีโอเปิดได้ในตั้งค่า",12);
+        note.setTextColor(MUTED);root.addView(note,spaced(-2,8));
         updateCount();
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startCamera();
-        else requestPermissions(new String[]{Manifest.permission.CAMERA}, 12);
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)startCamera();
+        else requestPermissions(new String[]{Manifest.permission.CAMERA},12);
     }
-    private void updateCount() {
-        if(count != null) {
-            int n=db.count(bag), goal=db.expected(bag);
-            count.setText("สแกน " + n + " ชิ้น" + (goal>0?" / เป้าหมาย "+goal+" • ขาด "+Math.max(0,goal-n):""));
-        }
-        if(bagLabel!=null) bagLabel.setText("ถุง: " + bag + (db.isClosed(bag)?" [ปิดแล้ว]":" [เปิด]") + " • " + db.bagCarrier(bag));
+    private void updateCount(){
+        int n=db.count(bag),goal=db.expected(bag);
+        if(count!=null)count.setText("สแกน  "+n+"  ชิ้น");
+        if(goalLabel!=null)goalLabel.setText(goal>0?"เป้าหมาย "+goal:"ไม่กำหนดเป้าหมาย");
+        if(bagProgress!=null)bagProgress.setProgress(goal>0?Math.min(100,n*100/goal):0);
+        if(bagLabel!=null)bagLabel.setText("ถุง: "+bag+(db.isClosed(bag)?" [ปิด]":" [เปิด]"));
+    }
+    /** Manual evidence capture is a fallback for labels that cameras cannot decode. */
+    private void manualCaptureDialog(){
+        if(db.isClosed(bag)){message("ถุงปิดแล้ว • เปิดถุงใหม่ก่อน");return;}
+        final EditText field=new EditText(this);field.setSingleLine(true);field.setTextColor(WHITE);
+        field.setHint("กรอก Tracking ก่อนถ่ายภาพ");field.setHintTextColor(MUTED);
+        new AlertDialog.Builder(this).setTitle("ถ่ายภาพด้วยมือ")
+            .setMessage("ใช้เมื่อสแกนบาร์โค้ดไม่ติด • ต้องกรอกเลขพัสดุจริงให้ถูกต้อง")
+            .setView(field).setNegativeButton("ยกเลิก",null)
+            .setPositiveButton("ถ่ายและบันทึก",(dialog,which)->{
+                String code=field.getText().toString().trim().toUpperCase(Locale.US);
+                if(!code.matches("[A-Z0-9_-]{6,80}")){message("เลขพัสดุไม่ถูกต้อง");return;}
+                if(db.exists(code)){message("เลขพัสดุซ้ำ: "+code);tones.startTone(ToneGenerator.TONE_PROP_NACK,180);return;}
+                Bitmap shot=preview==null?null:preview.getBitmap();
+                if(shot==null){message("กล้องยังไม่พร้อมถ่ายภาพ");return;}
+                String bagAtCapture=bag;
+                ioExecutor.execute(()->saveManualEvidence(code,bagAtCapture,shot));
+            }).show();
+    }
+    private void saveManualEvidence(String code,String targetBag,Bitmap shot){
+        File photo=null;
+        try{
+            if(db.isClosed(targetBag))throw new IOException("ถุงปิดแล้ว");
+            Bitmap marked=shot.copy(Bitmap.Config.ARGB_8888,true);shot.recycle();
+            Canvas canvas=new Canvas(marked);Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+            p.setColor(0xD9000000);canvas.drawRect(0,0,marked.getWidth(),dp(110),p);
+            p.setColor(WHITE);p.setTypeface(Typeface.create(Typeface.DEFAULT,Typeface.BOLD));
+            p.setTextSize(dp(17));canvas.drawText("TRACKING: "+code,dp(12),dp(31),p);
+            p.setTextSize(dp(12));canvas.drawText(targetBag,dp(12),dp(59),p);
+            canvas.drawText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US).format(new Date()),dp(12),dp(83),p);
+            File folder=new File(getFilesDir(),"photos");if(!folder.exists()&&!folder.mkdirs())throw new IOException("สร้างโฟลเดอร์รูปไม่ได้");
+            photo=new File(folder,UUID.randomUUID()+".jpg");
+            try(FileOutputStream f=new FileOutputStream(photo)){
+                if(!marked.compress(Bitmap.CompressFormat.JPEG,82,f))throw new IOException("บันทึกไฟล์ภาพผิดพลาด");
+            }
+            marked.recycle();
+            boolean ok=db.addParcel(code,targetBag,photo.getAbsolutePath(),-1);
+            if(!ok){photo.delete();runOnUiThread(()->message("เลขซ้ำหรือบันทึกไม่สำเร็จ: "+code));return;}
+            runOnUiThread(()->{updateCount();message("✓ บันทึกภาพด้วยมือแล้ว: "+code);announceSaved();});
+        }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->message("ถ่ายภาพผิดพลาด: "+e.getMessage()));}
     }
     private boolean createNewBag(boolean withConfirm) {
         if(withConfirm && !db.isClosed(bag) && db.count(bag)>0) {
@@ -200,7 +366,14 @@ public class MainActivity extends AppCompatActivity {
             .setNegativeButton("กลับไปตรวจ",null)
             .setPositiveButton("ยืนยันปิด",(d,w)->{if(recording!=null)stopVideo();db.closeBag(bag);updateCount();message("ปิดถุงแล้ว • "+n+" ชิ้น");}).show();
     }
-    private void message(String s) {if(status!=null && active) status.setText(s); else Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
+    private void message(String s) {
+        if(status!=null && active){
+            status.setText(s);
+            int bg=(s.contains("✓") || s.contains("บันทึกแล้ว") || s.contains("พร้อม"))?0xFF0E533E:
+                ((s.contains("ผิด") || s.contains("ซ้ำ") || s.contains("ไม่ได้") || s.contains("ปิดแล้ว"))?0xFF642525:0xFF263541);
+            status.setBackground(shape(bg,0,10));
+        } else Toast.makeText(this,s,Toast.LENGTH_LONG).show();
+    }
 
     /** Thai text-to-speech is selected ONLY if an offline Thai voice is installed.
      *  Fallback is a short beep; no network is needed during packing.
