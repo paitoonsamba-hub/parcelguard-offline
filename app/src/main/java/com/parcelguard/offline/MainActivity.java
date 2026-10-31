@@ -8,6 +8,9 @@ import android.graphics.*;
 import android.media.Image;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
+import android.media.AudioAttributes;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.Voice;
 import android.net.Uri;
 import android.os.*;
 import android.provider.Settings;
@@ -58,7 +61,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean armed = true;
     private long lastCaptureAt = 0;
     private boolean enableVideo = false;
-    private final ToneGenerator tones = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 75);
+    private final ToneGenerator tones = new ToneGenerator(AudioManager.STREAM_MUSIC, 85);
+    private TextToSpeech savedSpeech;
+    private volatile boolean thaiOfflineVoiceReady = false;
+    private boolean speakAfterSave = true;
     private PreviewView preview;
     private TextView status, count, bagLabel, liveTracking;
     private EditText query, expectedEntry, dateFrom, dateTo;
@@ -71,6 +77,9 @@ public class MainActivity extends AppCompatActivity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         db = new ParcelDb(this);
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        speakAfterSave = getPreferences(0).getBoolean("voice_on_save", true);
+        initSavedSpeech();
         scanner = BarcodeScanning.getClient(new BarcodeScannerOptions.Builder()
                 .setBarcodeFormats(Barcode.FORMAT_CODE_128, Barcode.FORMAT_CODE_39,
                         Barcode.FORMAT_QR_CODE, Barcode.FORMAT_EAN_13, Barcode.FORMAT_ITF).build());
@@ -97,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
         root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(12), dp(10), dp(12), dp(20)); root.setBackgroundColor(BG);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(root); setContentView(scroll);
-        root.addView(text("📦 ParcelGuard Offline 0.2", 23));
+        root.addView(text("📦 ParcelGuard Offline 0.2.2", 23));
         root.addView(text(title, 13));
         LinearLayout tabs = new LinearLayout(this); tabs.setOrientation(LinearLayout.HORIZONTAL);
         Button scan = button("สแกน", this::showScan); Button history = button("ประวัติ", this::showHistory);
@@ -192,6 +201,48 @@ public class MainActivity extends AppCompatActivity {
             .setPositiveButton("ยืนยันปิด",(d,w)->{if(recording!=null)stopVideo();db.closeBag(bag);updateCount();message("ปิดถุงแล้ว • "+n+" ชิ้น");}).show();
     }
     private void message(String s) {if(status!=null && active) status.setText(s); else Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
+
+    /** Thai text-to-speech is selected ONLY if an offline Thai voice is installed.
+     *  Fallback is a short beep; no network is needed during packing.
+     */
+    private void initSavedSpeech() {
+        try {
+            savedSpeech = new TextToSpeech(getApplicationContext(), result -> {
+                if (result != TextToSpeech.SUCCESS || savedSpeech == null) return;
+                try {
+                    savedSpeech.setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+                    savedSpeech.setSpeechRate(1.0f);
+                    int language = savedSpeech.setLanguage(new Locale("th", "TH"));
+                    if (language < TextToSpeech.LANG_AVAILABLE) return;
+                    Set<Voice> voices = savedSpeech.getVoices();
+                    if (voices == null) return;
+                    for (Voice voice : voices) {
+                        if (voice.getLocale() != null
+                                && "th".equals(voice.getLocale().getLanguage())
+                                && !voice.isNetworkConnectionRequired()
+                                && savedSpeech.setVoice(voice) == TextToSpeech.SUCCESS) {
+                            thaiOfflineVoiceReady = true;
+                            break;
+                        }
+                    }
+                } catch (Exception ignored) { thaiOfflineVoiceReady = false; }
+            });
+        } catch (Exception ignored) { thaiOfflineVoiceReady = false; }
+    }
+
+    /** Call only after BOTH the JPEG and the database row were committed. */
+    private void announceSaved() {
+        if (speakAfterSave && thaiOfflineVoiceReady && savedSpeech != null) {
+            try {
+                int result = savedSpeech.speak("บันทึกแล้ว", TextToSpeech.QUEUE_FLUSH,
+                        null, "parcelguard_saved_" + System.currentTimeMillis());
+                if (result == TextToSpeech.SUCCESS) return;
+            } catch (Exception ignored) { /* Fall back to beep */ }
+        }
+        tones.startTone(ToneGenerator.TONE_PROP_BEEP, 180);
+    }
 
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> future=ProcessCameraProvider.getInstance(this);
@@ -288,7 +339,7 @@ public class MainActivity extends AppCompatActivity {
             long offset=recording!=null && recordingBag.equals(bag)?Math.max(0,System.currentTimeMillis()-recordingStartTime):-1;
             boolean ok=db.addParcel(tracking,bag,photo.getAbsolutePath(),offset);
             if(!ok) {photo.delete(); runOnUiThread(()->message("บันทึกฐานข้อมูลไม่สำเร็จ: "+tracking));return;}
-            runOnUiThread(()->{tones.startTone(ToneGenerator.TONE_PROP_BEEP,120);updateCount();message("✓ บันทึกภาพ: "+tracking+" • ใส่ถุงได้");});
+            runOnUiThread(()->{updateCount();message("✓ บันทึกภาพ: "+tracking+" • ใส่ถุงได้");announceSaved();});
         }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->message("ถ่ายภาพผิดพลาด: "+e.getMessage()));}
     }
     private byte[] toNV21(Image.Plane[] planes,int width,int height) {
@@ -476,6 +527,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(){pauseCamera();base("ตั้งค่ากล้อง / ส่งออกข้อมูล / ความเป็นส่วนตัว");
+        CheckBox voiceNotify = new CheckBox(this);
+        voiceNotify.setTextColor(WHITE);
+        voiceNotify.setText("พูด 'บันทึกแล้ว' เมื่อถ่ายภาพและบันทึกสำเร็จ");
+        voiceNotify.setChecked(speakAfterSave);
+        root.addView(voiceNotify);
+        voiceNotify.setOnCheckedChangeListener((button, checked) -> {
+            speakAfterSave = checked;
+            getPreferences(0).edit().putBoolean("voice_on_save", checked).apply();
+        });
+        addButton("ทดลองเสียงแจ้งเตือน", this::announceSaved);
+        root.addView(text("เสียงพูดต้องมีเสียงภาษาไทยแบบออฟไลน์ในเครื่อง หากยังไม่มีจะดังบี๊บแทน • ปรับระดับเสียงที่ปุ่มเพิ่มเสียงสื่อของมือถือ", 12));
         CheckBox video=new CheckBox(this);video.setTextColor(WHITE);video.setText("เปิดใช้โหมดวิดีโอทดลองพร้อมสแกน (กินพื้นที่มาก)");
         video.setChecked(enableVideo);root.addView(video);
         video.setOnCheckedChangeListener((b,checked)->{
@@ -597,5 +659,14 @@ public class MainActivity extends AppCompatActivity {
         if(code==12){if(results.length>0 && results[0]==PackageManager.PERMISSION_GRANTED)startCamera();
             else message("ต้องอนุญาตกล้องในตั้งค่าแอปก่อนใช้งาน");}
     }
-    @Override protected void onDestroy(){pauseCamera();scanner.close();cameraExecutor.shutdown();ioExecutor.shutdown();tones.release();db.close();super.onDestroy();}
+    @Override protected void onDestroy(){
+        pauseCamera();
+        scanner.close();
+        cameraExecutor.shutdown();
+        ioExecutor.shutdown();
+        if(savedSpeech!=null){savedSpeech.stop();savedSpeech.shutdown();savedSpeech=null;}
+        tones.release();
+        db.close();
+        super.onDestroy();
+    }
 }
