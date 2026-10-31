@@ -150,10 +150,12 @@ public class MainActivity extends AppCompatActivity {
         root.addView(cameraBox,new LinearLayout.LayoutParams(-1,dp(310)));
         status = text("กำลังขอใช้กล้อง...", 14); root.addView(status);
         addButton("เปิด/ปิดไฟฉาย", () -> {torch=!torch; if(boundCamera!=null && boundCamera.getCameraInfo().hasFlashUnit()) boundCamera.getCameraControl().enableTorch(torch);});
-        addButton("บันทึกวิดีโอถุงนี้ (ทดลอง)", () -> {
+        addButton("▶ เริ่ม/หยุดวิดีโอถุงนี้ (ทดลอง)", () -> {
             if(recording!=null) stopVideo(); else startVideo();
         });
-        root.addView(text("วิดีโอเป็นตัวเลือกเสริม หากมือถือไม่รองรับกล้อง 3 งานพร้อมกัน ระบบจะใช้ภาพถ่ายอย่างเดียว", 12));
+        addButton("ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน", this::manageCurrentBagVideo);
+        root.addView(text("วิดีโอ 1 คลิปต่อถุงเท่านั้น หากหยุดแล้วสามารถเปิดดูหรือแชร์คลิปเดิมได้ แต่จะบันทึกคลิปใหม่ทับหลักฐานไม่ได้โดยอัตโนมัติ", 12));
+        root.addView(text("หากมือถือไม่รองรับ Preview + Scan + Video พร้อมกัน ระบบจะใช้ภาพถ่ายอย่างเดียว", 12));
         root.addView(text("ยกพัสดุออกจากกรอบกล้อง ก่อนวางชิ้นถัดไป • สแกนสำเร็จเมื่อบันทึกภาพลงเครื่องแล้ว", 13));
         updateCount();
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) startCamera();
@@ -304,11 +306,61 @@ public class MainActivity extends AppCompatActivity {
         return nv21;
     }
 
+    /** Allows access to an existing per-bag video without leaving the scanning screen.
+     *  Never deletes or overwrites video evidence automatically.
+     */
+    private void manageCurrentBagVideo() {
+        if (recording != null || recordingStarting) {
+            message("กำลังบันทึกวิดีโออยู่ กรุณาหยุดและรอปิดไฟล์ก่อน");
+            return;
+        }
+        String path = db.videoPath(bag);
+        File file = path == null || path.isEmpty() ? null : new File(path);
+        if (file == null || !file.isFile()) {
+            message("ถุงนี้ยังไม่มีไฟล์วิดีโอที่เปิดได้ • ลองเริ่มบันทึกวิดีโอ");
+            return;
+        }
+        String currentBag = bag;
+        new AlertDialog.Builder(this)
+            .setTitle("พบวิดีโอของถุงนี้แล้ว")
+            .setMessage(currentBag + "\nขนาด " + (file.length() / (1024 * 1024)) + " MB\n\n"
+                    + "แอปรุ่นนี้รองรับ 1 คลิปต่อถุง ป้องกันการบันทึกทับหลักฐานเดิม")
+            .setItems(new String[]{"▶ ดูวิดีโอเดิม", "↗ แชร์วิดีโอเพื่อสำรอง", "ลบคลิปเก่าเพื่อเริ่มบันทึกใหม่"}, (dialog, choice) -> {
+                if (choice == 0) {
+                    playVideo(currentBag, 0);
+                } else if (choice == 1) {
+                    shareFile(file, "video/mp4");
+                } else {
+                    new AlertDialog.Builder(this)
+                        .setTitle("ลบหลักฐานวิดีโอเก่า?")
+                        .setMessage("ควรแชร์และสำรองไฟล์เก่าก่อนลบ\n\n"
+                            + "การลบถาวรจะกู้คลิปเดิมไม่ได้ และเวลาวิดีโอที่เชื่อมกับ Tracking เดิมจะใช้อ้างอิงไม่ได้อีก\n\n"
+                            + "รูปถ่ายและเลข Tracking จะยังคงอยู่")
+                        .setNegativeButton("ยกเลิก", null)
+                        .setPositiveButton("ยืนยันลบคลิปเก่า", (d, whichButton) -> {
+                            if (recording != null || recordingStarting || !currentBag.equals(bag)) {
+                                message("สถานะถุงเปลี่ยน กรุณาลองใหม่");
+                                return;
+                            }
+                            if (file.delete()) {
+                                db.clearVideo(currentBag);
+                                message("ลบวิดีโอเดิมแล้ว กดเริ่มบันทึกเพื่อถ่ายใหม่");
+                            } else {
+                                message("ลบคลิปไม่สำเร็จ กรุณาสำรองแล้วลองใหม่");
+                            }
+                        }).show();
+                }
+            })
+            .setNegativeButton("ปิด", null)
+            .show();
+    }
+
     private void startVideo() {
         if(db.isClosed(bag)){message("ต้องเปิดถุงใหม่ก่อน");return;}
         String prior=db.videoPath(bag);
         if(prior!=null && !prior.isEmpty() && new File(prior).isFile()){
-            message("ถุงนี้มีวิดีโออยู่แล้ว • ถ้าจะถ่ายใหม่ต้องจัดการไฟล์เก่าก่อน");return;
+            manageCurrentBagVideo();
+            return;
         }
         if(!enableVideo){message("เปิดการบันทึกวิดีโอในหน้าตั้งค่าก่อน");return;}
         if(!videoSupported || videoCapture==null){message("อุปกรณ์ไม่รองรับบันทึกวิดีโอพร้อมสแกน • ภาพถ่ายยังทำงานได้");return;}
