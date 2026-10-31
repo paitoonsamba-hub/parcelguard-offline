@@ -63,13 +63,23 @@ public class MainActivity extends AppCompatActivity {
     private int pendingHits = 0, missingFrames = 0;
     private boolean armed = true;
     private long lastCaptureAt = 0;
-    private boolean enableVideo = false;
+    private boolean enableVideo = false; // Legacy continuous video for one bag
+    private boolean autoVideoEnabled = true; // Default: short individual clip per tracking
+    private int autoVideoSeconds = 4;
+    private boolean autoVideoBusy = false;
+    private String autoVideoTracking = "";
+    private String autoVideoBag = "";
+    private long autoVideoStart = 0;
+    private boolean autoVideoTimerCompleted = false;
+    private final Handler videoHandler = new Handler(Looper.getMainLooper());
+    private Runnable videoStopTask;
+    private String recentClipResult = "";
     private final ToneGenerator tones = new ToneGenerator(AudioManager.STREAM_MUSIC, 85);
     private TextToSpeech savedSpeech;
     private volatile boolean thaiOfflineVoiceReady = false;
     private boolean speakAfterSave = true;
     private PreviewView preview;
-    private TextView status, count, bagLabel, liveTracking, goalLabel;
+    private TextView status, count, bagLabel, liveTracking, goalLabel, clipIndicator;
     private ProgressBar bagProgress;
     private EditText query, expectedEntry, dateFrom, dateTo;
     private LinearLayout root;
@@ -91,6 +101,8 @@ public class MainActivity extends AppCompatActivity {
                 .setBarcodeFormats(Barcode.FORMAT_CODE_128, Barcode.FORMAT_CODE_39,
                         Barcode.FORMAT_QR_CODE, Barcode.FORMAT_EAN_13, Barcode.FORMAT_ITF).build());
         enableVideo = getPreferences(0).getBoolean("video", false);
+        autoVideoEnabled = getPreferences(0).getBoolean("auto_clip_enabled", true);
+        autoVideoSeconds = Math.max(3, Math.min(5, getPreferences(0).getInt("auto_clip_seconds", 4)));
         cleanupTrash();
         cleanupVideos();
         String previous=db.latestOpenBag();
@@ -141,7 +153,10 @@ public class MainActivity extends AppCompatActivity {
         brand.addView(title);
         TextView sub=text("ระบบตรวจสอบการแพ็คพัสดุ",11);sub.setTextColor(MUTED);sub.setPadding(dp(8),0,0,0);brand.addView(sub);
         top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        Button settings=button("⚙",this::showSettings);settings.setTextSize(23);
+        Button settings=button("⚙",()->{
+            if(autoVideoBusy){message("กำลังอัดคลิป กรุณารอให้เสร็จก่อน");return;}
+            showSettings();
+        });settings.setTextSize(23);
         settings.setBackground(shape(BG,0,10));top.addView(settings,new LinearLayout.LayoutParams(dp(46),dp(46)));
         shell.addView(top,new LinearLayout.LayoutParams(-1,dp(72)));
         ScrollView sc=new ScrollView(this);sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);
@@ -152,7 +167,11 @@ public class MainActivity extends AppCompatActivity {
         String[] names={"⌂  แพ็คพัสดุ","▤  ประวัติ","▥  รายงาน","⚙  ตั้งค่า"};
         Runnable[] actions={this::showScan,this::showHistory,this::showReports,this::showSettings};
         for(int i=0;i<names.length;i++){
-            Button nav=button(names[i],actions[i]);nav.setTextSize(11);nav.setPadding(0,0,0,0);
+            final Runnable navAction=actions[i];
+            Button nav=button(names[i],()->{
+                if(autoVideoBusy){message("● กำลังบันทึกคลิป กรุณารอให้ครบ "+autoVideoSeconds+" วินาที");return;}
+                navAction.run();
+            });nav.setTextSize(11);nav.setPadding(0,0,0,0);
             nav.setTextColor((i==0 && subtitle.contains("ถุง")) ? ORANGE : MUTED);
             nav.setBackground(shape(0xFF111A23,0,9));
             LinearLayout.LayoutParams navP=new LinearLayout.LayoutParams(0,dp(48),1);navP.setMargins(dp(2),0,dp(2),0);
@@ -180,13 +199,19 @@ public class MainActivity extends AppCompatActivity {
         addButton("ส่งออก ZIP หลักฐานทั้งหมด",()->exportZip(null));
         addButton("ส่งออก ZIP ถุงปัจจุบัน",()->exportZip(bag));
         addButton("ดูสถานะถุงทั้งหมด",this::showBags);
-        root.addView(text("ข้อมูลอยู่ในมือถือเครื่องนี้เท่านั้น • ควรสำรองหลักฐานเป็นประจำ",12));
+        root.addView(text("ข้อมูลอยู่ในมือถือเครื่องนี้เท่านั้น • ควรสำรองหลักฐานทั้งรูปและคลิปออกเป็น ZIP เป็นประจำ",12));
     }
     private void pauseCamera() {
+        active = false;
+        if (videoStopTask != null) {videoHandler.removeCallbacks(videoStopTask);videoStopTask=null;}
+        if (recording != null) {
+            try {recording.stop();} catch(Exception ignored) {}
+            // Finalize callback will persist any completed recording and release the state.
+            recording = null;
+        }
         if (cameraProvider != null) cameraProvider.unbindAll();
         boundCamera = null; videoCapture = null;
-        if (recording != null) {recording.stop(); recording = null;}
-        working.set(false); active = false;
+        working.set(false);
     }
     private void showScan() {
         if(root!=null)pauseCamera();active=true;
@@ -275,6 +300,12 @@ public class MainActivity extends AppCompatActivity {
         liveTracking.setBackground(shape(0xDD111820,0,7));
         FrameLayout.LayoutParams tr=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
         tr.setMargins(dp(12),dp(14),dp(12),0);cameraBox.addView(liveTracking,tr);
+        clipIndicator=prominent("",13,WHITE);
+        clipIndicator.setBackground(shape(0xEE9B1C1C,0,8));
+        clipIndicator.setVisibility(View.GONE);
+        FrameLayout.LayoutParams clipPosition=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.RIGHT);
+        clipPosition.setMargins(dp(8),dp(14),dp(12),0);
+        cameraBox.addView(clipIndicator,clipPosition);
         cameraCard.addView(cameraBox,spaced(310,8));
         status=prominent("กำลังเปิดกล้อง...",13,WHITE);
         status.setBackground(shape(0xFF263541,0,10));
@@ -285,12 +316,19 @@ public class MainActivity extends AppCompatActivity {
         controls.addView(light,new LinearLayout.LayoutParams(0,dp(61),1));
         Button shutter=orangeButton("▣  ถ่ายภาพ",this::manualCaptureDialog);shutter.setTextSize(16);
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(61),1.2f);cp.setMargins(dp(7),0,dp(7),0);controls.addView(shutter,cp);
-        Button vid=button("▣  วิดีโอ",()->{if(recording!=null)stopVideo();else startVideo();});
+        Button vid=button(autoVideoEnabled ? "●  คลิปอัตโนมัติ" : "▣  วิดีโอ",()->{
+            if (autoVideoEnabled) message("กำลังใช้คลิปอัตโนมัติ "+autoVideoSeconds+" วินาทีต่อพัสดุ • ดูคลิปที่เมนูประวัติ");
+            else if(recording!=null)stopVideo();else startVideo();
+        });
         controls.addView(vid,new LinearLayout.LayoutParams(0,dp(61),1));
         cameraCard.addView(controls,spaced(-2,10));
         root.addView(cameraCard,spaced(-2,12));
-        addButton("▶  ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน",this::manageCurrentBagVideo);
-        TextView note=text("กล้องสแกนอัตโนมัติเมื่อวางพัสดุใต้กล้อง • มีเสียง 'บันทึกแล้ว' เมื่อเก็บหลักฐานสำเร็จ • โหมดวิดีโอเปิดได้ในตั้งค่า",12);
+        addButton(autoVideoEnabled ? "▶  ค้นหา / ดูคลิปพัสดุแต่ละชิ้น" : "▶  ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน",
+            ()->{if (autoVideoBusy) {message("กำลังอัดคลิป กรุณารอให้เสร็จก่อน");return;}
+                  if(autoVideoEnabled)showHistory();else manageCurrentBagVideo();});
+        TextView note=text(autoVideoEnabled
+            ? "สแกนสำเร็จ → บันทึก JPEG → อัดวิดีโอ "+autoVideoSeconds+" วินาที → เสียง 'บันทึกแล้ว' เมื่อ MP4 สำเร็จ • อย่าวางชิ้นถัดไประหว่างอัด"
+            : "กล้องสแกนอัตโนมัติเมื่อวางพัสดุใต้กล้อง • มีเสียง 'บันทึกแล้ว' เมื่อเก็บหลักฐานสำเร็จ • โหมดวิดีโอต่อเนื่องเปิดได้ในตั้งค่า",12);
         note.setTextColor(MUTED);root.addView(note,spaced(-2,8));
         updateCount();
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED)startCamera();
@@ -305,6 +343,7 @@ public class MainActivity extends AppCompatActivity {
     }
     /** Manual evidence capture is a fallback for labels that cameras cannot decode. */
     private void manualCaptureDialog(){
+        if(autoVideoBusy){message("กำลังอัดวิดีโอของชิ้นก่อน • รอให้เสร็จก่อน");return;}
         if(db.isClosed(bag)){message("ถุงปิดแล้ว • เปิดถุงใหม่ก่อน");return;}
         final EditText field=new EditText(this);field.setSingleLine(true);field.setTextColor(WHITE);
         field.setHint("กรอก Tracking ก่อนถ่ายภาพ");field.setHintTextColor(MUTED);
@@ -340,10 +379,15 @@ public class MainActivity extends AppCompatActivity {
             marked.recycle();
             boolean ok=db.addParcel(code,targetBag,photo.getAbsolutePath(),-1);
             if(!ok){photo.delete();runOnUiThread(()->message("เลขซ้ำหรือบันทึกไม่สำเร็จ: "+code));return;}
-            runOnUiThread(()->{updateCount();message("✓ บันทึกภาพด้วยมือแล้ว: "+code);announceSaved();});
+            runOnUiThread(()->{
+                updateCount();
+                if(autoVideoEnabled) beginParcelVideo(code,targetBag);
+                else {message("✓ บันทึกภาพด้วยมือแล้ว: "+code);announceSaved();}
+            });
         }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->message("ถ่ายภาพผิดพลาด: "+e.getMessage()));}
     }
     private boolean createNewBag(boolean withConfirm) {
+        if(autoVideoBusy){message("กำลังอัดคลิป กรุณารอให้เสร็จก่อนเปิดถุงใหม่");return false;}
         if(withConfirm && !db.isClosed(bag) && db.count(bag)>0) {
             new AlertDialog.Builder(this).setTitle("ถุงเดิมยังไม่ปิด")
                 .setMessage("ต้องการเปิดถุงใหม่โดยปล่อยให้ถุงเดิมยังเปิดอยู่หรือไม่?")
@@ -358,6 +402,7 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
     private void confirmClose() {
+        if(autoVideoBusy){message("กำลังอัดคลิป กรุณารอจนบันทึกเสร็จก่อนปิดถุง");return;}
         if(db.isClosed(bag)) {message("ถุงนี้ถูกปิดแล้ว");return;}
         int n=db.count(bag), expected=db.expected(bag);
         String warning=expected>0 && n!=expected ? "⚠ จำนวนไม่ตรงเป้าหมาย! ควรมี "+expected+" ชิ้น แต่สแกน "+n+" ชิ้น\n\n" : "";
@@ -418,6 +463,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCamera() {
+        if(!active || autoVideoBusy) return;
         ListenableFuture<ProcessCameraProvider> future=ProcessCameraProvider.getInstance(this);
         future.addListener(()->{
             try {
@@ -428,7 +474,7 @@ public class MainActivity extends AppCompatActivity {
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
                 analysis.setAnalyzer(cameraExecutor,this::analyze);
                 videoSupported=false; videoCapture=null;
-                if(enableVideo) {
+                if(enableVideo && !autoVideoEnabled) {
                     try {
                         Recorder recorder=new Recorder.Builder().setQualitySelector(
                             QualitySelector.from(Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))).build();
@@ -441,14 +487,17 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }else boundCamera=cameraProvider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,pv,analysis);
                 if(torch && boundCamera.getCameraInfo().hasFlashUnit()) boundCamera.getCameraControl().enableTorch(true);
-                message("กล้องพร้อม • สแกนอัตโนมัติ"+(videoSupported?" • วิดีโอพร้อม":""));
+                message(recentClipResult.isEmpty()
+                    ? "กล้องพร้อม • สแกนอัตโนมัติ"+(autoVideoEnabled?" • คลิป "+autoVideoSeconds+" วิ/ชิ้น":(videoSupported?" • วิดีโอพร้อม":""))
+                    : recentClipResult);
+                recentClipResult="";
             }catch(Exception e){message("เปิดกล้องไม่สำเร็จ: "+e.getMessage());}
         }, ContextCompat.getMainExecutor(this));
     }
 
     @androidx.camera.core.ExperimentalGetImage
     private void analyze(ImageProxy frame) {
-        if(!active || !working.compareAndSet(false,true)) {frame.close();return;}
+        if(!active || autoVideoBusy || !working.compareAndSet(false,true)) {frame.close();return;}
         Image media=frame.getImage();
         if(media==null) {working.set(false);frame.close();return;}
         InputImage input=InputImage.fromMediaImage(media, frame.getImageInfo().getRotationDegrees());
@@ -468,7 +517,12 @@ public class MainActivity extends AppCompatActivity {
                 missingFrames=0;
                 final String scanned=value;
                 runOnUiThread(()->{if(liveTracking!=null && active)liveTracking.setText("Tracking: "+scanned);});
-                if(!value.equals(pendingCode)) {pendingCode=value;pendingHits=1;}
+                if(!value.equals(pendingCode)) {
+                    // Allow a different package immediately after the previous clip, even
+                    // when the previous barcode never left view long enough for 4 empty frames.
+                    if(!value.equals(lastRecorded))armed=true;
+                    pendingCode=value;pendingHits=1;
+                }
                 else pendingHits++;
                 if(armed && pendingHits>=2 && System.currentTimeMillis()-lastCaptureAt>650) {
                     armed=false; lastRecorded=value;lastCaptureAt=System.currentTimeMillis();
@@ -512,7 +566,12 @@ public class MainActivity extends AppCompatActivity {
             long offset=recording!=null && recordingBag.equals(bag)?Math.max(0,System.currentTimeMillis()-recordingStartTime):-1;
             boolean ok=db.addParcel(tracking,bag,photo.getAbsolutePath(),offset);
             if(!ok) {photo.delete(); runOnUiThread(()->message("บันทึกฐานข้อมูลไม่สำเร็จ: "+tracking));return;}
-            runOnUiThread(()->{updateCount();message("✓ บันทึกภาพ: "+tracking+" • ใส่ถุงได้");announceSaved();});
+            final String targetBag=bag;
+            runOnUiThread(()->{
+                updateCount();
+                if(autoVideoEnabled)beginParcelVideo(tracking,targetBag);
+                else {message("✓ บันทึกภาพ: "+tracking+" • ใส่ถุงได้");announceSaved();}
+            });
         }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->message("ถ่ายภาพผิดพลาด: "+e.getMessage()));}
     }
     private byte[] toNV21(Image.Plane[] planes,int width,int height) {
@@ -579,7 +638,132 @@ public class MainActivity extends AppCompatActivity {
             .show();
     }
 
+    /** After a JPEG+database row are saved, record one independent MP4 per Tracking.
+     *  Switch from Preview+ImageAnalysis to Preview+VideoCapture during the clip.
+     *  This avoids requiring 3 simultaneous camera use cases on budget Samsung devices.
+     *  Scanner is fully paused until VideoRecordEvent.Finalize is received.
+     */
+    private void beginParcelVideo(String tracking,String targetBag) {
+        if(!autoVideoEnabled){message("✓ บันทึกภาพ: "+tracking);announceSaved();return;}
+        if(autoVideoBusy || recording!=null || recordingStarting || !active
+                || cameraProvider==null || preview==null || !targetBag.equals(bag)){
+            db.markParcelVideoFailed(tracking);
+            recentClipResult="⚠ ภาพบันทึกแล้ว แต่วิดีโอเริ่มไม่ได้: กล้องไม่พร้อม";
+            message(recentClipResult);tones.startTone(ToneGenerator.TONE_PROP_NACK,200);
+            return;
+        }
+        File file=null;
+        try {
+            android.os.StatFs st=new android.os.StatFs(getFilesDir().getAbsolutePath());
+            if(st.getAvailableBytes()<150L*1024L*1024L)throw new IOException("พื้นที่ว่างน้อยกว่า 150 MB");
+            File dir=new File(getFilesDir(),"videos/parcels");
+            if(!dir.exists() && !dir.mkdirs())throw new IOException("สร้างโฟลเดอร์คลิปไม่ได้");
+            file=new File(dir,tracking+"-"+System.currentTimeMillis()+".mp4");
+            final File videoFile=file;
+            final String clipTracking=tracking;
+            final String clipBag=targetBag;
+            final int duration=autoVideoSeconds;
+            autoVideoBusy=true;autoVideoTracking=tracking;autoVideoBag=targetBag;
+            autoVideoTimerCompleted=false;
+            autoVideoStart=0;
+            db.markParcelVideoPending(tracking);
+            recordingStarting=true;
+            // Binding only preview + video avoids hardware-dependent triple binding.
+            cameraProvider.unbindAll();
+            working.set(false);
+            Preview pv=new Preview.Builder().build();pv.setSurfaceProvider(preview.getSurfaceProvider());
+            Recorder recorder=new Recorder.Builder().setQualitySelector(
+                    QualitySelector.from(Quality.SD,
+                            FallbackStrategy.lowerQualityOrHigherThan(Quality.SD))).build();
+            videoCapture=VideoCapture.withOutput(recorder);
+            boundCamera=cameraProvider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,pv,videoCapture);
+            if(torch && boundCamera.getCameraInfo().hasFlashUnit())boundCamera.getCameraControl().enableTorch(true);
+            message("● เริ่มวิดีโอ "+duration+" วินาที: ใส่พัสดุลงถุง ("+tracking+")");
+            PendingRecording pending=videoCapture.getOutput().prepareRecording(this,
+                    new FileOutputOptions.Builder(videoFile).build());
+            recording=pending.start(ContextCompat.getMainExecutor(this),event->{
+                if(event instanceof VideoRecordEvent.Start){
+                    recordingStarting=false;
+                    autoVideoStart=System.currentTimeMillis();
+                    countdownParcelVideo(clipTracking,autoVideoStart,duration);
+                    videoStopTask=()->{
+                        if(autoVideoBusy && autoVideoTracking.equals(clipTracking) && recording!=null){
+                            autoVideoTimerCompleted=true;
+                            try{recording.stop();}catch(Exception ignored){}
+                        }
+                    };
+                    videoHandler.postDelayed(videoStopTask,duration*1000L);
+                }else if(event instanceof VideoRecordEvent.Finalize){
+                    VideoRecordEvent.Finalize fin=(VideoRecordEvent.Finalize)event;
+                    if(videoStopTask!=null){videoHandler.removeCallbacks(videoStopTask);videoStopTask=null;}
+                    boolean clipOk=!fin.hasError() && autoVideoTimerCompleted
+                            && videoFile.isFile() && videoFile.length()>1024;
+                    if(clipOk){
+                        if(clipIndicator!=null){
+                            clipIndicator.setText("✓ MP4 สำเร็จ");
+                            clipIndicator.setBackground(shape(0xDD0C6748,0,8));
+                            videoHandler.postDelayed(()->{if(!autoVideoBusy && clipIndicator!=null)
+                                clipIndicator.setVisibility(View.GONE);},1800);
+                        }
+                        db.setParcelVideo(clipTracking,videoFile.getAbsolutePath());
+                        recentClipResult="✓ บันทึกภาพและวิดีโอแล้ว: "+clipTracking+" • วางชิ้นต่อไปได้";
+                    }else{
+                        if(clipIndicator!=null){clipIndicator.setText("⚠ คลิปล้มเหลว");
+                            clipIndicator.setBackground(shape(0xDD9B1C1C,0,8));}
+                        db.markParcelVideoFailed(clipTracking);
+                        if(videoFile.isFile())videoFile.delete();
+                        recentClipResult="⚠ บันทึกภาพแล้ว แต่วิดีโอไม่สำเร็จ: "+clipTracking;
+                    }
+                    recording=null;recordingStarting=false;
+                    autoVideoBusy=false;autoVideoTracking="";autoVideoBag="";
+                    videoCapture=null;
+                    if(active){startCamera();}
+                    if(active)message(recentClipResult);
+                    if(clipOk)announceSaved();
+                    else tones.startTone(ToneGenerator.TONE_PROP_NACK,300);
+                }
+            });
+        }catch(Exception e){
+            if(videoStopTask!=null){videoHandler.removeCallbacks(videoStopTask);videoStopTask=null;}
+            recordingStarting=false;recording=null;autoVideoBusy=false;
+            autoVideoTracking="";autoVideoBag="";videoCapture=null;
+            db.markParcelVideoFailed(tracking);
+            if(file!=null && file.isFile())file.delete();
+            recentClipResult="⚠ ภาพบันทึกแล้ว แต่เริ่มวิดีโอไม่ได้: "+e.getMessage();
+            if(active)startCamera();
+            message(recentClipResult);tones.startTone(ToneGenerator.TONE_PROP_NACK,300);
+        }
+    }
+    private void countdownParcelVideo(String tracking,long started,int duration){
+        if(!autoVideoBusy || !autoVideoTracking.equals(tracking) || autoVideoStart!=started)return;
+        int left=Math.max(1,(int)Math.ceil((duration*1000-(System.currentTimeMillis()-started))/1000.0));
+        if(clipIndicator!=null){
+            clipIndicator.setText("● REC "+left+"s");
+            clipIndicator.setBackground(shape(0xEE9B1C1C,0,8));
+            clipIndicator.setVisibility(View.VISIBLE);
+        }
+        message("● กำลังอัดคลิป "+left+" วิ • ใส่พัสดุลงถุง • "+tracking);
+        if(left>1)videoHandler.postDelayed(()->countdownParcelVideo(tracking,started,duration),650);
+    }
+    private void playParcelVideo(String tracking){
+        String path=db.parcelVideoPath(tracking);
+        File file=path.isEmpty()?null:new File(path);
+        if(file==null || !file.isFile()){
+            Toast.makeText(this,"คลิปวิดีโอพัสดุนี้ไม่พร้อม",Toast.LENGTH_LONG).show();return;
+        }
+        VideoView player=new VideoView(this);
+        player.setMediaController(new MediaController(this));
+        player.setLayoutParams(new android.widget.FrameLayout.LayoutParams(-1,dp(280)));
+        player.setVideoPath(file.getAbsolutePath());
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("คลิปพัสดุ: "+tracking)
+            .setView(player).setPositiveButton("แชร์คลิป",(d,w)->shareFile(file,"video/mp4"))
+            .setNegativeButton("ปิด",null).create();
+        player.setOnPreparedListener(mp->player.start());
+        dialog.setOnDismissListener(d->player.stopPlayback());dialog.show();
+    }
+
     private void startVideo() {
+        if(autoVideoEnabled){message("คลิปต่อชิ้นเปิดอัตโนมัติอยู่ • ปิดในตั้งค่าหากต้องการคลิปทั้งถุง");return;}
         if(db.isClosed(bag)){message("ต้องเปิดถุงใหม่ก่อน");return;}
         String prior=db.videoPath(bag);
         if(prior!=null && !prior.isEmpty() && new File(prior).isFile()){
@@ -641,7 +825,9 @@ public class MainActivity extends AppCompatActivity {
                 String tracking=c.getString(0), bagId=c.getString(1),path=c.getString(2);
                 long time=c.getLong(3), offset=c.getLong(4);
                 String stamp=new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.US).format(new Date(time));
-                Button b=button(tracking+"\n"+bagId+" • "+stamp,()->showEvidence(tracking,bagId,path,offset,deleted));
+                String clip=db.parcelVideoPath(tracking);
+                Button b=button(tracking+(!clip.isEmpty() && new File(clip).isFile()?"  🎬":"  📷")+"\n"+bagId+" • "+stamp,
+                    ()->showEvidence(tracking,bagId,path,offset,deleted));
                 list.addView(b);n++;
             }
         }
@@ -650,6 +836,11 @@ public class MainActivity extends AppCompatActivity {
     private void showEvidence(String tracking,String bagId,String path,long offset,boolean deleted) {
         File file=new File(path);LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);
         content.addView(text(tracking+"\n"+bagId,15));
+        String clipPath=db.parcelVideoPath(tracking);
+        File clipFile=clipPath.isEmpty()?null:new File(clipPath);
+        content.addView(text(clipFile!=null && clipFile.isFile()
+            ? "วิดีโอคลิปพัสดุพร้อมดู • "+(clipFile.length()/1024)+" KB"
+            : "ภาพหลักฐาน"+(db.parcelVideoState(tracking)==3?" • ⚠ วิดีโอไม่สำเร็จ":" • ไม่มีคลิปวิดีโอ"),13));
         if(file.isFile()){
             ImageView image=new ImageView(this);BitmapFactory.Options opts=new BitmapFactory.Options();opts.inSampleSize=2;
             image.setImageBitmap(BitmapFactory.decodeFile(path,opts));image.setAdjustViewBounds(true);
@@ -662,8 +853,12 @@ public class MainActivity extends AppCompatActivity {
             dlg.setNeutralButton("ลบถาวร",(d,w)->confirmPermanent(tracking,path));
         }else{
             dlg.setPositiveButton("แชร์รูป",(d,w)->shareFile(file,"image/jpeg"));
-            dlg.setNeutralButton("เพิ่มเติม",(d,w)->new AlertDialog.Builder(this).setItems(new String[]{"เปิดวิดีโอถุงนี้", "ย้ายไปถังขยะ"},(d2,index)->{
-                if(index==0)playVideo(bagId,offset);else{
+            dlg.setNeutralButton("เพิ่มเติม",(d,w)->new AlertDialog.Builder(this).setItems(new String[]{"เปิดคลิปวิดีโอของพัสดุนี้", "ย้ายไปถังขยะ"},(d2,index)->{
+                if(index==0){
+                    String parcelClip=db.parcelVideoPath(tracking);
+                    if(!parcelClip.isEmpty() && new File(parcelClip).isFile())playParcelVideo(tracking);
+                    else playVideo(bagId,offset); // Backward compatible with older bag videos.
+                }else{
                     new AlertDialog.Builder(this).setMessage("ย้าย "+tracking+" ไปถังขยะหรือไม่?")
                         .setNegativeButton("ยกเลิก",null).setPositiveButton("ย้าย",(d3,whichButton)->{db.trash(tracking);showHistory();}).show();
                 }
@@ -674,7 +869,9 @@ public class MainActivity extends AppCompatActivity {
     private void confirmPermanent(String tracking,String path){
         new AlertDialog.Builder(this).setTitle("ลบถาวร?").setMessage("หลังลบจะกู้รูปหลักฐานนี้กลับไม่ได้")
             .setNegativeButton("ยกเลิก",null).setPositiveButton("ลบถาวร",(d,w)->{
-                db.permanentlyDelete(tracking);new File(path).delete();showTrash();
+                String videoPath=db.parcelVideoPath(tracking);
+                db.permanentlyDelete(tracking);new File(path).delete();
+                if(!videoPath.isEmpty())new File(videoPath).delete();showTrash();
             }).show();
     }
     private void playVideo(String bagId,long offset) {
@@ -700,6 +897,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(){pauseCamera();base("ตั้งค่ากล้อง / ส่งออกข้อมูล / ความเป็นส่วนตัว");
+        root.addView(prominent("วิดีโอคลิปอัตโนมัติรายพัสดุ",17,ORANGE));
+        CheckBox automaticClip=new CheckBox(this);
+        automaticClip.setTextColor(WHITE);
+        automaticClip.setText("สแกน Tracking แล้วถ่ายภาพ + อัดวิดีโออัตโนมัติ");
+        automaticClip.setChecked(autoVideoEnabled);root.addView(automaticClip);
+        automaticClip.setOnCheckedChangeListener((btn,checked)->{
+            autoVideoEnabled=checked;
+            getPreferences(0).edit().putBoolean("auto_clip_enabled",checked).apply();
+            message(checked?"เปิดคลิปอัตโนมัติแล้ว":"ปิดคลิปอัตโนมัติแล้ว");
+        });
+        root.addView(text("ความยาวคลิป (หลังสแกน) • ค่าเริ่มต้น 4 วินาที",13));
+        Spinner clipDuration=new Spinner(this);
+        String[] clipLabels={"3 วินาทีต่อพัสดุ","4 วินาทีต่อพัสดุ (แนะนำ)","5 วินาทีต่อพัสดุ"};
+        ArrayAdapter<String> clipAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,clipLabels);
+        clipDuration.setAdapter(clipAdapter);clipDuration.setSelection(autoVideoSeconds-3);
+        clipDuration.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int i,long id){
+                autoVideoSeconds=i+3;
+                getPreferences(0).edit().putInt("auto_clip_seconds",autoVideoSeconds).apply();
+            }
+        });root.addView(clipDuration);
+        root.addView(text("ระหว่างอัดคลิป แอปจะพักการสแกนและใช้กล้องบันทึกวิดีโอแยกชิ้น เพื่อรองรับมือถือที่ไม่สามารถสแกนและถ่ายวิดีโอพร้อมกันได้ • วิดีโอไม่มีเสียง",12));
         CheckBox voiceNotify = new CheckBox(this);
         voiceNotify.setTextColor(WHITE);
         voiceNotify.setText("พูด 'บันทึกแล้ว' เมื่อถ่ายภาพและบันทึกสำเร็จ");
@@ -711,7 +931,7 @@ public class MainActivity extends AppCompatActivity {
         });
         addButton("ทดลองเสียงแจ้งเตือน", this::announceSaved);
         root.addView(text("เสียงพูดต้องมีเสียงภาษาไทยแบบออฟไลน์ในเครื่อง หากยังไม่มีจะดังบี๊บแทน • ปรับระดับเสียงที่ปุ่มเพิ่มเสียงสื่อของมือถือ", 12));
-        CheckBox video=new CheckBox(this);video.setTextColor(WHITE);video.setText("เปิดใช้โหมดวิดีโอทดลองพร้อมสแกน (กินพื้นที่มาก)");
+        CheckBox video=new CheckBox(this);video.setTextColor(WHITE);video.setText("โหมดวิดีโอต่อเนื่องทั้งถุง (ใช้เมื่อปิดคลิปอัตโนมัติ)");
         video.setChecked(enableVideo);root.addView(video);
         video.setOnCheckedChangeListener((b,checked)->{
             enableVideo=checked;getPreferences(0).edit().putBoolean("video",checked).apply();
@@ -741,7 +961,7 @@ public class MainActivity extends AppCompatActivity {
         addButton("ส่งออก ZIP หลักฐานทั้งหมด (รวมวิดีโอ)",()->exportZip(null));
         addButton("ส่งออก ZIP เฉพาะถุงปัจจุบัน",()->exportZip(bag));
         addButton("ตรวจสอบถุงทั้งหมด",this::showBags);
-        root.addView(text("ข้อจำกัด: วิดีโอที่เปิดโหมดทดลองเป็นภาพสด ไม่ฝังเลข Tracking ลงในวิดีโอโดยตรง แต่บันทึกตำแหน่งเวลาไว้ในฐานข้อมูล ส่วนภาพ JPEG มี Tracking/วันที่/รหัสถุงอยู่บนภาพ",13));
+        root.addView(text("คลิปวิดีโอรายพัสดุเก็บในพื้นที่แอป ไม่ฝัง Tracking ลงในเฟรมวิดีโอ แต่จับคู่ผ่านฐานข้อมูลและ ZIP manifest.csv • ภาพ JPEG มี Tracking/วันที่/รหัสถุงอยู่บนภาพ",13));
         root.addView(text("ป้องกันข้อมูลลูกค้า: อย่าส่ง ZIP/ภาพไปเผยแพร่สาธารณะ และสำรองไฟล์ไว้ภายนอกมือถือเป็นประจำ",13));
     }
     private void showBags(){
@@ -760,13 +980,21 @@ public class MainActivity extends AppCompatActivity {
                 HashSet<String> includedVideo=new HashSet<>();
                 StringBuilder checksums=new StringBuilder();
                 try(ZipOutputStream out=new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(zip)))){
-                    StringBuilder csv=new StringBuilder("tracking,bag,photo_name,scanned_at,video_offset_ms\n");
+                    StringBuilder csv=new StringBuilder("tracking,bag,photo_name,scanned_at,video_offset_ms,parcel_video_file,video_status\n");
                     try(Cursor c=(onlyBag==null?db.allActive():db.bagActive(onlyBag))){
                         while(c.moveToNext()){
                             String tracking=c.getString(0),bagId=c.getString(1),photoPath=c.getString(2);
                             String photoName="photos/"+tracking.replaceAll("[^A-Z0-9_-]","_")+".jpg";
+                            String parcelVideoPath=db.parcelVideoPath(tracking);
+                            File pv=parcelVideoPath.isEmpty()?null:new File(parcelVideoPath);
+                            String parcelVideoName=pv!=null && pv.isFile()?"videos/parcels/"+pv.getName():"";
                             csv.append(csv(tracking)).append(',').append(csv(bagId)).append(',').append(csv(photoName))
-                                    .append(',').append(c.getLong(3)).append(',').append(c.getLong(4)).append('\n');
+                                    .append(',').append(c.getLong(3)).append(',').append(c.getLong(4))
+                                    .append(',').append(csv(parcelVideoName)).append(',').append(db.parcelVideoState(tracking)).append('\n');
+                            if(pv!=null && pv.isFile()){
+                                addZipFile(out,pv,parcelVideoName);
+                                checksums.append(sha256(pv)).append("  ").append(parcelVideoName).append('\n');
+                            }
                             File photo=new File(photoPath);if(photo.isFile()){
                                 addZipFile(out,photo,photoName);
                                 checksums.append(sha256(photo)).append("  ").append(photoName).append('\n');
@@ -819,12 +1047,26 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+        try(Cursor c=db.expiredParcelVideos(cutoff)) {
+            while(c.moveToNext()){
+                String tracking=c.getString(0), path=c.getString(1);
+                File clip=new File(path);
+                if(!clip.isFile() || clip.delete()){
+                    db.clearParcelVideo(tracking);removed++;
+                }
+            }
+        }
         return removed;
     }
     private void cleanupTrash(){
         long cutoff=System.currentTimeMillis()-30L*24*60*60*1000;
         try(Cursor c=db.deletedRowsOlder(cutoff)){
-            while(c.moveToNext()){new File(c.getString(1)).delete();db.permanentlyDelete(c.getString(0));}
+            while(c.moveToNext()){
+                String tracking=c.getString(0);
+                String v=db.parcelVideoPath(tracking);
+                if(!v.isEmpty())new File(v).delete();
+                new File(c.getString(1)).delete();db.permanentlyDelete(tracking);
+            }
         }
     }
     @Override public void onRequestPermissionsResult(int code,@NonNull String[] p,@NonNull int[] results){
