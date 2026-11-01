@@ -29,6 +29,9 @@ import androidx.camera.view.PreviewView;
 import androidx.camera.video.*;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.barcode.*;
 import com.google.mlkit.vision.barcode.common.Barcode;
@@ -102,6 +105,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        // Android 15 enforces edge-to-edge for targetSdk 35; explicitly handle safe areas on every version.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         db = new ParcelDb(this);
         hybridSync = new HybridSync(this,db,msg->runOnUiThread(()->Toast.makeText(this,msg,Toast.LENGTH_SHORT).show()));
         hybridHandler.postDelayed(hybridTick,12000);
@@ -155,6 +160,15 @@ public class MainActivity extends AppCompatActivity {
     private void base(String subtitle) {
         LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(BG);
         getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
+        // Keep the entire screen, including the fixed bottom menu, outside status/navigation bars.
+        ViewCompat.setOnApplyWindowInsetsListener(shell, (view, insets) -> {
+            int safeTypes = WindowInsetsCompat.Type.statusBars()
+                    | WindowInsetsCompat.Type.navigationBars()
+                    | WindowInsetsCompat.Type.displayCutout();
+            androidx.core.graphics.Insets safe = insets.getInsets(safeTypes);
+            view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+            return insets;
+        });
         LinearLayout top=horizontal();top.setPadding(dp(16),dp(10),dp(12),dp(7));
         ImageView logo=new ImageView(this);logo.setImageResource(R.mipmap.ic_launcher);
         top.addView(logo,new LinearLayout.LayoutParams(dp(45),dp(45)));
@@ -190,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
         }
         shell.addView(bottom,new LinearLayout.LayoutParams(-1,dp(66)));
         setContentView(shell);
+        ViewCompat.requestApplyInsets(shell);
         if(!subtitle.isEmpty() && !subtitle.contains("ถุงใหญ่")) {
             TextView heading=prominent(subtitle,18,WHITE);root.addView(heading,spaced(-2,2));
         }

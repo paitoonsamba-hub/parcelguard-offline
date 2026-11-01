@@ -1,6 +1,6 @@
 plugins { id 'com.android.application' }
 android { namespace 'com.parcelguard.offline'; compileSdk 35
- defaultConfig { applicationId 'com.parcelguard.offline'; minSdk 26; targetSdk 35; versionCode 8; versionName '0.4.3-hybrid' }
+ defaultConfig { applicationId 'com.parcelguard.offline'; minSdk 26; targetSdk 35; versionCode 9; versionName '0.4.4-safe-area' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies {
