@@ -105,7 +105,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
-        // Android 15 enforces edge-to-edge for targetSdk 35; explicitly handle safe areas on every version.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         db = new ParcelDb(this);
         hybridSync = new HybridSync(this,db,msg->runOnUiThread(()->Toast.makeText(this,msg,Toast.LENGTH_SHORT).show()));
@@ -160,12 +159,9 @@ public class MainActivity extends AppCompatActivity {
     private void base(String subtitle) {
         LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(BG);
         getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
-        // Keep the entire screen, including the fixed bottom menu, outside status/navigation bars.
         ViewCompat.setOnApplyWindowInsetsListener(shell, (view, insets) -> {
-            int safeTypes = WindowInsetsCompat.Type.statusBars()
-                    | WindowInsetsCompat.Type.navigationBars()
-                    | WindowInsetsCompat.Type.displayCutout();
-            androidx.core.graphics.Insets safe = insets.getInsets(safeTypes);
+            androidx.core.graphics.Insets safe = insets.getInsets(WindowInsetsCompat.Type.statusBars()
+                | WindowInsetsCompat.Type.navigationBars() | WindowInsetsCompat.Type.displayCutout());
             view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
             return insets;
         });
@@ -1037,6 +1033,7 @@ public class MainActivity extends AppCompatActivity {
             getPreferences(0).edit().putBoolean("voice_on_save", checked).apply();
         });
         addButton("ทดลองเสียงแจ้งเตือน", this::announceSaved);
+        addButton("▦ สแกน QR จับคู่กับ ParcelGuard PC",()->startActivity(new Intent(this,PairQrActivity.class)));
         addButton("Wi-Fi ซิงก์กับ ParcelGuard PC",this::showHybridSettings);
         root.addView(text("เสียงพูดต้องมีเสียงภาษาไทยแบบออฟไลน์ในเครื่อง หากยังไม่มีจะดังบี๊บแทน • ปรับระดับเสียงที่ปุ่มเพิ่มเสียงสื่อของมือถือ", 12));
         CheckBox video=new CheckBox(this);video.setTextColor(WHITE);video.setText("โหมดวิดีโอต่อเนื่องทั้งถุง (ใช้เมื่อปิดคลิปอัตโนมัติ)");
