@@ -60,6 +60,12 @@ public class MainActivity extends AppCompatActivity {
     private boolean active = true;
     private String bag = "", carrier = "SPX";
     private String pendingCode = "", lastRecorded = "";
+    private Button reviewBarcodeButton;
+    private List<String> reviewCandidates = Collections.emptyList();
+    private volatile boolean reviewDialogOpen = false;
+    private volatile boolean manualEvidenceBusy = false;
+    private long lastSmartWarningAt = 0;
+    private String lastSmartWarning = "";
     private int pendingHits = 0, missingFrames = 0;
     private boolean armed = true;
     private long lastCaptureAt = 0;
@@ -322,6 +328,9 @@ public class MainActivity extends AppCompatActivity {
         });
         controls.addView(vid,new LinearLayout.LayoutParams(0,dp(61),1));
         cameraCard.addView(controls,spaced(-2,10));
+        reviewBarcodeButton=button("⚠  ตรวจเลข Tracking ที่อ่านได้",this::showBarcodeReview);
+        reviewBarcodeButton.setVisibility(View.GONE);
+        cameraCard.addView(reviewBarcodeButton,spaced(46,7));
         root.addView(cameraCard,spaced(-2,12));
         addButton(autoVideoEnabled ? "▶  ค้นหา / ดูคลิปพัสดุแต่ละชิ้น" : "▶  ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน",
             ()->{if (autoVideoBusy) {message("กำลังอัดคลิป กรุณารอให้เสร็จก่อน");return;}
@@ -339,11 +348,11 @@ public class MainActivity extends AppCompatActivity {
         if(count!=null)count.setText("สแกน  "+n+"  ชิ้น");
         if(goalLabel!=null)goalLabel.setText(goal>0?"เป้าหมาย "+goal:"ไม่กำหนดเป้าหมาย");
         if(bagProgress!=null)bagProgress.setProgress(goal>0?Math.min(100,n*100/goal):0);
-        if(bagLabel!=null)bagLabel.setText("ถุง: "+bag+(db.isClosed(bag)?" [ปิด]":" [เปิด]"));
+        if(bagLabel!=null)bagLabel.setText("ถุง: "+bag+" • "+db.bagCarrier(bag)+(db.isClosed(bag)?" [ปิด]":" [เปิด]"));
     }
     /** Manual evidence capture is a fallback for labels that cameras cannot decode. */
     private void manualCaptureDialog(){
-        if(autoVideoBusy){message("กำลังอัดวิดีโอของชิ้นก่อน • รอให้เสร็จก่อน");return;}
+        if(autoVideoBusy || manualEvidenceBusy){message("กำลังบันทึกหลักฐานของชิ้นก่อน • รอให้เสร็จก่อน");return;}
         if(db.isClosed(bag)){message("ถุงปิดแล้ว • เปิดถุงใหม่ก่อน");return;}
         final EditText field=new EditText(this);field.setSingleLine(true);field.setTextColor(WHITE);
         field.setHint("กรอก Tracking ก่อนถ่ายภาพ");field.setHintTextColor(MUTED);
@@ -354,12 +363,62 @@ public class MainActivity extends AppCompatActivity {
                 String code=field.getText().toString().trim().toUpperCase(Locale.US);
                 if(!code.matches("[A-Z0-9_-]{6,80}")){message("เลขพัสดุไม่ถูกต้อง");return;}
                 if(db.exists(code)){message("เลขพัสดุซ้ำ: "+code);tones.startTone(ToneGenerator.TONE_PROP_NACK,180);return;}
-                Bitmap shot=preview==null?null:preview.getBitmap();
-                if(shot==null){message("กล้องยังไม่พร้อมถ่ายภาพ");return;}
-                String bagAtCapture=bag;
-                ioExecutor.execute(()->saveManualEvidence(code,bagAtCapture,shot));
+                String currentCarrier=db.bagCarrier(bag);
+                if(TrackingSelector.confidence(code,currentCarrier)<70){
+                    new AlertDialog.Builder(this)
+                        .setTitle("⚠ ตรวจเลขพัสดุอีกครั้ง")
+                        .setMessage("รหัส "+code+" ไม่ตรงรูปแบบ Tracking ที่ระบบเชื่อมั่นสำหรับ "+currentCarrier
+                            +"\nอาจเป็นรหัสคัดแยกสินค้า • ให้ยืนยันจากเลข Tracking บนใบปะหน้าจริงก่อนบันทึก")
+                        .setNegativeButton("กลับไปแก้",null)
+                        .setPositiveButton("ตรวจแล้ว ยืนยันเลขนี้",(d,w)->recordManualCode(code))
+                        .show();
+                }else recordManualCode(code);
             }).show();
     }
+    private void recordManualCode(String code){
+        if(autoVideoBusy || manualEvidenceBusy || db.isClosed(bag)){message("ยังไม่พร้อมบันทึก • ตรวจสถานะถุง");return;}
+        if(db.exists(code)){message("เลขพัสดุซ้ำ: "+code);return;}
+        Bitmap shot=preview==null?null:preview.getBitmap();
+        if(shot==null){message("กล้องยังไม่พร้อมถ่ายภาพ");return;}
+        String bagAtCapture=bag;
+        armed=false;lastRecorded=code;lastCaptureAt=System.currentTimeMillis();
+        manualEvidenceBusy=true;
+        ioExecutor.execute(()->saveManualEvidence(code,bagAtCapture,shot));
+    }
+    /** Show only plausible unknown/competing tracking labels, never sorting codes. */
+    private void showBarcodeReview(){
+        if(autoVideoBusy || manualEvidenceBusy || reviewDialogOpen || reviewCandidates.isEmpty())return;
+        if(db.isClosed(bag)){message("ถุงปิดแล้ว • เปิดถุงใหม่ก่อน");return;}
+        Bitmap snapshot=preview==null?null:preview.getBitmap();
+        if(snapshot==null){message("กล้องไม่พร้อม • ลองอีกครั้ง");return;}
+        final String targetBag=bag;
+        final String currentCarrier=db.bagCarrier(targetBag);
+        final String[] options=reviewCandidates.toArray(new String[0]);
+        reviewDialogOpen=true;
+        new AlertDialog.Builder(this)
+            .setTitle("ยืนยันเลข Tracking บนใบปะหน้า")
+            .setMessage("ถุง: "+targetBag+" / "+currentCarrier
+                    +"\nกรุณาเทียบเลขกับใบปะหน้าจริงก่อนเลือก ถ้าไม่มีเลขที่ตรง ให้กดยกเลิกแล้วใช้ปุ่มถ่ายภาพด้วยมือ")
+            .setItems(options,(d,selected)->{
+                String chosen=options[selected];
+                if(!targetBag.equals(bag) || db.isClosed(targetBag)){
+                    snapshot.recycle();message("ถุงเปลี่ยนหรือปิดแล้ว กรุณาลองใหม่");return;
+                }
+                if(db.exists(chosen)){
+                    snapshot.recycle();message("เลขพัสดุซ้ำ: "+chosen);return;
+                }
+                armed=false;lastRecorded=chosen;lastCaptureAt=System.currentTimeMillis();
+                reviewCandidates=Collections.emptyList();
+                if(reviewBarcodeButton!=null)reviewBarcodeButton.setVisibility(View.GONE);
+                manualEvidenceBusy=true;
+                ioExecutor.execute(()->saveManualEvidence(chosen,targetBag,snapshot));
+            })
+            .setNegativeButton("ยกเลิก",(d,w)->snapshot.recycle())
+            .setOnCancelListener(d->snapshot.recycle())
+            .setOnDismissListener(d->reviewDialogOpen=false)
+            .show();
+    }
+
     private void saveManualEvidence(String code,String targetBag,Bitmap shot){
         File photo=null;
         try{
@@ -378,16 +437,17 @@ public class MainActivity extends AppCompatActivity {
             }
             marked.recycle();
             boolean ok=db.addParcel(code,targetBag,photo.getAbsolutePath(),-1);
-            if(!ok){photo.delete();runOnUiThread(()->message("เลขซ้ำหรือบันทึกไม่สำเร็จ: "+code));return;}
+            if(!ok){photo.delete();runOnUiThread(()->{manualEvidenceBusy=false;message("เลขซ้ำหรือบันทึกไม่สำเร็จ: "+code);});return;}
             runOnUiThread(()->{
                 updateCount();
                 if(autoVideoEnabled) beginParcelVideo(code,targetBag);
                 else {message("✓ บันทึกภาพด้วยมือแล้ว: "+code);announceSaved();}
+                manualEvidenceBusy=false;
             });
-        }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->message("ถ่ายภาพผิดพลาด: "+e.getMessage()));}
+        }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->{manualEvidenceBusy=false;message("ถ่ายภาพผิดพลาด: "+e.getMessage());});}
     }
     private boolean createNewBag(boolean withConfirm) {
-        if(autoVideoBusy){message("กำลังอัดคลิป กรุณารอให้เสร็จก่อนเปิดถุงใหม่");return false;}
+        if(autoVideoBusy || manualEvidenceBusy || reviewDialogOpen){message("กำลังบันทึกหลักฐาน กรุณารอให้เสร็จก่อนเปิดถุงใหม่");return false;}
         if(withConfirm && !db.isClosed(bag) && db.count(bag)>0) {
             new AlertDialog.Builder(this).setTitle("ถุงเดิมยังไม่ปิด")
                 .setMessage("ต้องการเปิดถุงใหม่โดยปล่อยให้ถุงเดิมยังเปิดอยู่หรือไม่?")
@@ -402,7 +462,7 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
     private void confirmClose() {
-        if(autoVideoBusy){message("กำลังอัดคลิป กรุณารอจนบันทึกเสร็จก่อนปิดถุง");return;}
+        if(autoVideoBusy || manualEvidenceBusy || reviewDialogOpen){message("กำลังบันทึกหลักฐาน กรุณารอจนเสร็จก่อนปิดถุง");return;}
         if(db.isClosed(bag)) {message("ถุงนี้ถูกปิดแล้ว");return;}
         int n=db.count(bag), expected=db.expected(bag);
         String warning=expected>0 && n!=expected ? "⚠ จำนวนไม่ตรงเป้าหมาย! ควรมี "+expected+" ชิ้น แต่สแกน "+n+" ชิ้น\n\n" : "";
@@ -415,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
         if(status!=null && active){
             status.setText(s);
             int bg=(s.contains("✓") || s.contains("บันทึกแล้ว") || s.contains("พร้อม"))?0xFF0E533E:
-                ((s.contains("ผิด") || s.contains("ซ้ำ") || s.contains("ไม่ได้") || s.contains("ปิดแล้ว"))?0xFF642525:0xFF263541);
+                ((s.contains("⚠") || s.contains("ผิด") || s.contains("ซ้ำ") || s.contains("ไม่ได้") || s.contains("ปิดแล้ว"))?0xFF642525:0xFF263541);
             status.setBackground(shape(bg,0,10));
         } else Toast.makeText(this,s,Toast.LENGTH_LONG).show();
     }
@@ -497,35 +557,60 @@ public class MainActivity extends AppCompatActivity {
 
     @androidx.camera.core.ExperimentalGetImage
     private void analyze(ImageProxy frame) {
-        if(!active || autoVideoBusy || !working.compareAndSet(false,true)) {frame.close();return;}
+        if(!active || autoVideoBusy || manualEvidenceBusy || reviewDialogOpen || !working.compareAndSet(false,true)) {frame.close();return;}
         Image media=frame.getImage();
         if(media==null) {working.set(false);frame.close();return;}
         InputImage input=InputImage.fromMediaImage(media, frame.getImageInfo().getRotationDegrees());
         scanner.process(input).addOnSuccessListener(cameraExecutor,codes->{
-            String value="";
-            for(Barcode bc: codes) {
-                String raw=bc.getRawValue();
-                if(raw!=null) {
-                    String candidate=raw.trim().toUpperCase(Locale.US);
-                    if(candidate.matches("[A-Z0-9_-]{6,80}")) {value=candidate;break;}
-                }
+            List<String> observed = new ArrayList<>();
+            for (Barcode bc: codes) {
+                if (bc.getRawValue()!=null)observed.add(bc.getRawValue());
             }
+            // "carrier" on the spinner is for the NEXT bag; the current bag's
+            // carrier is locked in SQLite when the bag is created.
+            String currentCarrier=db.bagCarrier(bag);
+            TrackingSelector.Decision decision=TrackingSelector.choose(observed,currentCarrier);
+            String value=decision.autoTracking;
             if(value.isEmpty()) {
                 missingFrames++;
-                if(missingFrames>=4) {armed=true;pendingHits=0;pendingCode="";}
-            }else {
+                pendingHits=0;pendingCode="";
+                if(missingFrames>=4 && observed.isEmpty())armed=true;
+                if(!decision.message.isEmpty()) {
+                    long now=System.currentTimeMillis();
+                    if(!decision.message.equals(lastSmartWarning) || now-lastSmartWarningAt>2500){
+                        lastSmartWarning=decision.message;lastSmartWarningAt=now;
+                        runOnUiThread(()->{
+                            if(active && !autoVideoBusy && !reviewDialogOpen){
+                                if(liveTracking!=null)liveTracking.setText("Tracking: ต้องตรวจสอบ");
+                                message(decision.message);
+                                reviewCandidates=decision.reviewOptions;
+                                if(reviewBarcodeButton!=null)reviewBarcodeButton.setVisibility(
+                                        reviewCandidates.isEmpty()?View.GONE:View.VISIBLE);
+                            }
+                        });
+                    }
+                } else if(missingFrames>=4){
+                    runOnUiThread(()->{
+                        reviewCandidates=Collections.emptyList();
+                        if(reviewBarcodeButton!=null)reviewBarcodeButton.setVisibility(View.GONE);
+                    });
+                }
+            } else {
                 missingFrames=0;
-                final String scanned=value;
-                runOnUiThread(()->{if(liveTracking!=null && active)liveTracking.setText("Tracking: "+scanned);});
+                if(reviewDialogOpen)return;
+                runOnUiThread(()->{
+                    if(active && !reviewDialogOpen){
+                        if(liveTracking!=null)liveTracking.setText("Tracking: "+value);
+                        reviewCandidates=Collections.emptyList();
+                        if(reviewBarcodeButton!=null)reviewBarcodeButton.setVisibility(View.GONE);
+                    }
+                });
                 if(!value.equals(pendingCode)) {
-                    // Allow a different package immediately after the previous clip, even
-                    // when the previous barcode never left view long enough for 4 empty frames.
                     if(!value.equals(lastRecorded))armed=true;
                     pendingCode=value;pendingHits=1;
-                }
-                else pendingHits++;
+                } else pendingHits++;
                 if(armed && pendingHits>=2 && System.currentTimeMillis()-lastCaptureAt>650) {
-                    armed=false; lastRecorded=value;lastCaptureAt=System.currentTimeMillis();
+                    armed=false;lastRecorded=value;lastCaptureAt=System.currentTimeMillis();
                     saveEvidence(value,frame);
                 }
             }
