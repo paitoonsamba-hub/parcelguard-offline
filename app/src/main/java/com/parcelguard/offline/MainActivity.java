@@ -44,6 +44,9 @@ import java.util.zip.*;
 
 public class MainActivity extends AppCompatActivity {
     private ParcelDb db;
+    private HybridSync hybridSync;
+    private final Handler hybridHandler = new Handler(Looper.getMainLooper());
+    private final Runnable hybridTick = new Runnable(){@Override public void run(){if(hybridSync!=null)hybridSync.request();hybridHandler.postDelayed(this,30000);}};
     private BarcodeScanner scanner;
     private final ExecutorService cameraExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
@@ -100,6 +103,8 @@ public class MainActivity extends AppCompatActivity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
         db = new ParcelDb(this);
+        hybridSync = new HybridSync(this,db,msg->runOnUiThread(()->Toast.makeText(this,msg,Toast.LENGTH_SHORT).show()));
+        hybridHandler.postDelayed(hybridTick,12000);
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         speakAfterSave = getPreferences(0).getBoolean("voice_on_save", true);
         initSavedSpeech();
@@ -654,6 +659,7 @@ public class MainActivity extends AppCompatActivity {
             final String targetBag=bag;
             runOnUiThread(()->{
                 updateCount();
+                if(hybridSync!=null)hybridSync.request();
                 if(autoVideoEnabled)beginParcelVideo(tracking,targetBag);
                 else {message("✓ บันทึกภาพ: "+tracking+" • ใส่ถุงได้");announceSaved();}
             });
@@ -791,6 +797,7 @@ public class MainActivity extends AppCompatActivity {
                                 clipIndicator.setVisibility(View.GONE);},1800);
                         }
                         db.setParcelVideo(clipTracking,videoFile.getAbsolutePath());
+                        if(hybridSync!=null)hybridSync.request();
                         recentClipResult="✓ บันทึกภาพและวิดีโอแล้ว: "+clipTracking+" • วางชิ้นต่อไปได้";
                     }else{
                         if(clipIndicator!=null){clipIndicator.setText("⚠ คลิปล้มเหลว");
@@ -1015,6 +1022,7 @@ public class MainActivity extends AppCompatActivity {
             getPreferences(0).edit().putBoolean("voice_on_save", checked).apply();
         });
         addButton("ทดลองเสียงแจ้งเตือน", this::announceSaved);
+        addButton("Wi-Fi ซิงก์กับ ParcelGuard PC",this::showHybridSettings);
         root.addView(text("เสียงพูดต้องมีเสียงภาษาไทยแบบออฟไลน์ในเครื่อง หากยังไม่มีจะดังบี๊บแทน • ปรับระดับเสียงที่ปุ่มเพิ่มเสียงสื่อของมือถือ", 12));
         CheckBox video=new CheckBox(this);video.setTextColor(WHITE);video.setText("โหมดวิดีโอต่อเนื่องทั้งถุง (ใช้เมื่อปิดคลิปอัตโนมัติ)");
         video.setChecked(enableVideo);root.addView(video);
@@ -1056,6 +1064,19 @@ public class MainActivity extends AppCompatActivity {
                     .append(" • ").append(db.count(id)).append(" ชิ้น").append(c.getInt(2)==1?" [ปิด]":" [เปิด]").append("\n");}
         }
         new AlertDialog.Builder(this).setTitle("ถุงที่เคยสร้าง").setMessage(s.length()==0?"ไม่มีข้อมูล":s.toString()).setPositiveButton("ปิด",null).show();
+    }
+    private void showHybridSettings(){
+        android.content.SharedPreferences p=hybridSync.settings();
+        LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(18),dp(10),dp(18),dp(8));
+        CheckBox enabled=new CheckBox(this);enabled.setText("เปิดซิงก์อัตโนมัติขณะใช้งานแอป (Wi-Fi เท่านั้น)");enabled.setChecked(p.getBoolean("enabled",false));layout.addView(enabled);
+        EditText ip=new EditText(this);ip.setSingleLine(true);ip.setHint("IP คอม เช่น 192.168.1.100");ip.setInputType(InputType.TYPE_CLASS_TEXT);ip.setText(p.getString("host",""));layout.addView(ip);
+        EditText token=new EditText(this);token.setSingleLine(true);token.setHint("Token จาก PC / เพิ่มอุปกรณ์");token.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);token.setText(p.getString("token",""));layout.addView(token);
+        TextView help=new TextView(this);help.setText("เปิด START-LAN-EXPERIMENTAL.bat บน Windows • PC และมือถือใช้ Wi-Fi ร้านเดียวกัน • LAN นี้ไม่เข้ารหัส ห้ามใช้ Wi-Fi สาธารณะหรือเปิดพอร์ตสู่อินเทอร์เน็ต");layout.addView(help);
+        new AlertDialog.Builder(this).setTitle("Hybrid Sync • LAN ทดลอง").setView(layout)
+            .setNegativeButton("ยกเลิก",null).setPositiveButton("บันทึกและซิงก์",(d,w)->{
+                p.edit().putBoolean("enabled",enabled.isChecked()).putString("host",ip.getText().toString().trim()).putString("token",token.getText().toString().trim()).apply();
+                hybridSync.request();
+            }).show();
     }
     private void exportZip(String onlyBag){
         Toast.makeText(this,"กำลังรวบรวมหลักฐาน ZIP...",Toast.LENGTH_LONG).show();
@@ -1160,6 +1181,8 @@ public class MainActivity extends AppCompatActivity {
             else message("ต้องอนุญาตกล้องในตั้งค่าแอปก่อนใช้งาน");}
     }
     @Override protected void onDestroy(){
+        hybridHandler.removeCallbacks(hybridTick);
+        if(hybridSync!=null)hybridSync.close();
         pauseCamera();
         scanner.close();
         cameraExecutor.shutdown();
