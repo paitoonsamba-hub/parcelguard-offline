@@ -259,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
         TextView service=text("ขนส่งสำหรับถุงใหม่",12);service.setTextColor(MUTED);bagInfo.addView(service);
         bagRow.addView(bagInfo,new LinearLayout.LayoutParams(0,-2,1));
         Spinner carrierSelector=new Spinner(this);
-        String[] options={"SPX","J&T","Flash","LEX","Other"};
+        String[] options={"SPX","J&T","Flash","LEX","LEX+Flash","Other"};
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,options){
             @Override public View getView(int position,View convert,android.view.ViewGroup parent){
                 TextView v=text(getItem(position),15);v.setTextColor(ORANGE);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
@@ -272,7 +272,7 @@ public class MainActivity extends AppCompatActivity {
             public void onNothingSelected(android.widget.AdapterView<?> a){}
             public void onItemSelected(android.widget.AdapterView<?> a,View v,int i,long id){carrier=options[i];}
         });
-        bagRow.addView(carrierSelector,new LinearLayout.LayoutParams(dp(87),dp(45)));
+        bagRow.addView(carrierSelector,new LinearLayout.LayoutParams(dp(116),dp(45)));
         current.addView(bagRow);
         LinearLayout countRow=horizontal();
         count=prominent("",22,ORANGE);countRow.addView(count,new LinearLayout.LayoutParams(0,-2,1));
@@ -734,7 +734,10 @@ public class MainActivity extends AppCompatActivity {
                     pendingCode=value;pendingHits=1;
                 } else pendingHits++;
                 lastPendingSeenAt=hitTime;
-                if(armed && pendingHits>=2 && System.currentTimeMillis()-lastCaptureAt>650) {
+                // Verified LEX + Flash parcels often appear in only one sharp
+                // frame; don't lose them while waiting for a second ML Kit hit.
+                int hitsRequired=TrackingSelector.fastVerifiedLexFlash(value,currentCarrier)?1:2;
+                if(armed && pendingHits>=hitsRequired && System.currentTimeMillis()-lastCaptureAt>650) {
                     armed=false;lastRecorded=value;lastCaptureAt=System.currentTimeMillis();
                     saveEvidence(value,frame);
                 }

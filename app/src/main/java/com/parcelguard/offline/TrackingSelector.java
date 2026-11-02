@@ -63,7 +63,26 @@ final class TrackingSelector {
         return s.matches("TH[0-9]{5}AU[A-Z0-9]{5}");
     }
     private static boolean lexFlashBag(String carrier) {
-        return "LEX".equalsIgnoreCase(carrier) || "FLASH".equalsIgnoreCase(carrier);
+        if (carrier == null) return false;
+        String c=carrier.trim().replace(" ", "").toUpperCase(Locale.ROOT);
+        return "LEX".equals(c) || "FLASH".equals(c) || "LEX+FLASH".equals(c);
+    }
+
+    private static boolean matchesSelectedCarrier(String detected,String selected){
+        if (lexFlashBag(selected) && ("LEX".equalsIgnoreCase(detected) ||
+                "FLASH".equalsIgnoreCase(detected))) return true;
+        return detected.equalsIgnoreCase(selected);
+    }
+
+    // Once the barcode decoder has read a uniquely verified LEX/Flash label,
+    // accept that hit without requiring a second identical camera frame.
+    // Unknown codes and other carriers retain two-frame confirmation.
+    static boolean fastVerifiedLexFlash(String code,String selectedCarrier) {
+        String s=normalize(code);
+        return lexFlashBag(selectedCarrier)
+                && (isLexFlashTracking(s) || isKexVerified(s)
+                    || (isLex(s) && s.length()==15)
+                    || (isFlashSpecific(s) && s.length()==15));
     }
     private static boolean isThShared(String s) {return s.matches("TH[A-Z0-9]{10,16}");}
     private static boolean isNumericTracking(String s) {return s.matches("[0-9]{12,16}");}
@@ -86,15 +105,16 @@ final class TrackingSelector {
         if (isLexFlashTracking(s)) return lexFlashBag(current) ? 100 : 0;
         String known = knownCarrier(s);
         if (!known.isEmpty()) {
-            if (!known.equalsIgnoreCase(current)) return 0;
+            if (!matchesSelectedCarrier(known,current)) return 0;
             // The prefix KEX alone is insufficient to distinguish a shipment
             // barcode from an undocumented warehouse/internal barcode.
             if (isKexUnknown(s)) return 40; // ask the operator
             return 100;
         }
-        switch (current.toUpperCase(Locale.ROOT)) {
+        switch (current.replace(" ", "").toUpperCase(Locale.ROOT)) {
             case "SPX": return isThShared(s) ? 80 : 40;
-            case "LEX": return 40; // Unknown LEX prefix: ask, do not guess.
+            case "LEX":
+            case "LEX+FLASH": return 40; // Unknown LEX/Flash prefix: ask, do not guess.
             case "J&T": return isNumericTracking(s) ? 85 : (isThShared(s) ? 75 : 40);
             case "FLASH": return isThShared(s) ? 80 : 40;
             default: return 40;
@@ -111,7 +131,7 @@ final class TrackingSelector {
         if (rawText == null || rawText.isEmpty()) return Collections.emptyList();
         java.util.Set<String> found = new java.util.LinkedHashSet<>();
         java.util.regex.Pattern label = java.util.regex.Pattern.compile(
-                "(?<![A-Z0-9])(?:TH[0-9]{5}AU[A-Z0-9]{5}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
+                "(?<![A-Z0-9])(?:TH[0-9]{5}AU[A-Z0-9]{5}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|FLE[A-Z0-9]{12}|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
         for (String line : rawText.toUpperCase(Locale.ROOT).split("\\r?\\n")) {
             String compact = line.replaceAll("\\s+", "");
             java.util.regex.Matcher m = label.matcher(compact);
@@ -140,7 +160,7 @@ final class TrackingSelector {
                 continue;
             }
             String known=knownCarrier(s);
-            if (!known.isEmpty() && !known.equalsIgnoreCase(carrier)) {
+            if (!known.isEmpty() && !matchesSelectedCarrier(known,carrier)) {
                 if (!mismatched.contains(known)) mismatched.add(known);
                 continue;
             }

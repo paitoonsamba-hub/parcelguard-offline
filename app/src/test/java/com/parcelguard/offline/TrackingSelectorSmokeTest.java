@@ -59,6 +59,36 @@ public final class TrackingSelectorSmokeTest {
         if(!TrackingSelector.printedTextCandidates("TH26079AU6233D", "SPX").isEmpty())
             throw new AssertionError("OCR wrong carrier leak");
         tests++;
+        // LEX and Flash share the same physical bag; keep both old labels and
+        // the new explicit combined selector backward compatible.
+        for(String carrier : new String[]{"LEX","Flash","LEX+Flash"}) {
+            for(String s : samples){
+                expectAuto(carrier,s,"T-FC2-01",s,"19NE-09047-06");
+                if(!TrackingSelector.fastVerifiedLexFlash(s,carrier))
+                    throw new AssertionError("single frame LEX/Flash barcode not verified: "+s);
+                tests++;
+            }
+            expectAuto(carrier,"LEXPU0720309511","LEXPU0720309511","H-MUK-A1");
+            expectAuto(carrier,"KEXLM1006967960","KEXLM1006967960","T-KA3-01");
+            expectAuto(carrier,"KEXDOLM001221346","KEXDOLM001221346","T-KN3-01");
+            expectAuto(carrier,"FLE123456789012","FLE123456789012","T-KN3-01");
+            expectReview(carrier,"T-FC2-01","H-NAK-A2","19NE-09047-06");
+            expectReview(carrier,"TH39139AU6229B","TH26079AU6233D");
+            expectReview(carrier,"TH263781529981D"); // not verified for LEX/Flash
+            if(TrackingSelector.fastVerifiedLexFlash("T-FC2-01",carrier)
+                    || TrackingSelector.fastVerifiedLexFlash("TH263781529981D",carrier))
+                throw new AssertionError("sorting or unrelated tracking auto-accepted");
+            tests++;
+        }
+        expectReview("SPX","LEXPU0720309511");
+        expectReview("SPX","FLE123456789012");
+        if(TrackingSelector.fastVerifiedLexFlash("TH39139AU6229B","SPX"))
+            throw new AssertionError("LEX/Flash single-frame leaked to SPX");
+        tests++;
+        if(!TrackingSelector.printedTextCandidates("FLE123456789012","LEX+Flash")
+                .contains("FLE123456789012"))
+            throw new AssertionError("Flash OCR in mixed bag failed");
+        tests++;
         System.out.println("TrackingSelector smoke tests passed: " + tests);
     }
 }
