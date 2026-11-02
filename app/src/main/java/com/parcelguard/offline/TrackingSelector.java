@@ -116,7 +116,7 @@ final class TrackingSelector {
             case "LEX":
             case "LEX+FLASH": return 40; // Unknown LEX/Flash prefix: ask, do not guess.
             case "J&T": return isNumericTracking(s) ? 85 : (isThShared(s) ? 75 : 40);
-            case "FLASH": return isThShared(s) ? 80 : 40;
+            case "FLASH": return 40; // Only verified TH...AU... is auto; other TH codes need review.
             default: return 40;
         }
     }
