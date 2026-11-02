@@ -28,6 +28,11 @@ jobs:
           mkdir -p /tmp/pg-barcode-check
           javac -d /tmp/pg-barcode-check app/src/main/java/com/parcelguard/offline/TrackingSelector.java app/src/test/java/com/parcelguard/offline/TrackingSelectorSmokeTest.java
           java -cp /tmp/pg-barcode-check com.parcelguard.offline.TrackingSelectorSmokeTest
+      - name: Verify A4 manifest pagination
+        run: |
+          mkdir -p /tmp/pg-manifest-check
+          javac -d /tmp/pg-manifest-check app/src/main/java/com/parcelguard/offline/BagManifestPages.java app/src/test/java/com/parcelguard/offline/BagManifestPagesSmokeTest.java
+          java -cp /tmp/pg-manifest-check com.parcelguard.offline.BagManifestPagesSmokeTest
       - name: Build Debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
       - name: Upload APK

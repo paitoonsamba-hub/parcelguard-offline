@@ -225,6 +225,8 @@ public class MainActivity extends AppCompatActivity {
         addButton("ส่งออก ZIP หลักฐานทั้งหมด",()->exportZip(null));
         addButton("ส่งออก ZIP ถุงปัจจุบัน",()->exportZip(bag));
         addButton("ดูสถานะถุงทั้งหมด",this::showBags);
+        addButton("▤ พิมพ์ A4 / บันทึก PDF รายการพัสดุ",this::chooseBagToPrint);
+        root.addView(text("พิมพ์ผ่าน Android Print: เลือกเครื่องพิมพ์ที่เชื่อมต่อ หรือเลือก Save as PDF • ถุง 100 ชิ้นแบ่ง 2 หน้าอัตโนมัติ",12));
         root.addView(text("ข้อมูลอยู่ในมือถือเครื่องนี้เท่านั้น • ควรสำรองหลักฐานทั้งรูปและคลิปออกเป็น ZIP เป็นประจำ",12));
     }
     private void pauseCamera() {
@@ -580,7 +582,16 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this).setTitle("ยืนยันปิดถุง")
             .setMessage(warning+bag+"\nจำนวนที่บันทึก: "+n+" ชิ้น\nตรวจสอบว่าถุงซีลแล้ว")
             .setNegativeButton("กลับไปตรวจ",null)
-            .setPositiveButton("ยืนยันปิด",(d,w)->{if(recording!=null)stopVideo();db.closeBag(bag);updateCount();message("ปิดถุงแล้ว • "+n+" ชิ้น");}).show();
+            .setPositiveButton("ยืนยันปิด",(d,w)->{
+                if(recording!=null)stopVideo();
+                db.closeBag(bag);updateCount();message("ปิดถุงแล้ว • "+n+" ชิ้น");
+                String sealedBag=bag;
+                new AlertDialog.Builder(this).setTitle("ปิดถุงเรียบร้อย")
+                    .setMessage(sealedBag+" • "+n+" ชิ้น\nต้องการพิมพ์ใบสรุปติดถุงหรือรายการ Tracking ไหม?")
+                    .setNegativeButton("ยังไม่พิมพ์",null)
+                    .setPositiveButton("พิมพ์ / PDF",(dlg,which)->chooseManifestFormat(sealedBag))
+                    .show();
+            }).show();
     }
     private void message(String s) {
         if(status!=null && active){
@@ -1181,6 +1192,47 @@ public class MainActivity extends AppCompatActivity {
         root.addView(text("คลิปวิดีโอรายพัสดุเก็บในพื้นที่แอป ไม่ฝัง Tracking ลงในเฟรมวิดีโอ แต่จับคู่ผ่านฐานข้อมูลและ ZIP manifest.csv • ภาพ JPEG มี Tracking/วันที่/รหัสถุงอยู่บนภาพ",13));
         root.addView(text("ป้องกันข้อมูลลูกค้า: อย่าส่ง ZIP/ภาพไปเผยแพร่สาธารณะ และสำรองไฟล์ไว้ภายนอกมือถือเป็นประจำ",13));
     }
+    private void chooseBagToPrint() {
+        ArrayList<String> ids=new ArrayList<>();
+        ArrayList<String> labels=new ArrayList<>();
+        try(Cursor c=db.bagList()){
+            while(c.moveToNext()){
+                String id=c.getString(0),service=c.getString(1);
+                boolean sealed=c.getInt(2)==1;
+                ids.add(id);
+                labels.add(id+"\n"+service+" • "+db.count(id)+" ชิ้น"+(sealed?" [ปิด]":" [เปิด]"));
+            }
+        }
+        if(ids.isEmpty()){message("ยังไม่มีถุงพัสดุให้พิมพ์");return;}
+        new AlertDialog.Builder(this)
+            .setTitle("เลือกถุงสำหรับพิมพ์ A4 / PDF")
+            .setItems(labels.toArray(new String[0]),(dialog,which)->chooseManifestFormat(ids.get(which)))
+            .setNegativeButton("ยกเลิก",null).show();
+    }
+
+    private void chooseManifestFormat(String bagId) {
+        Runnable showChoices=()->new AlertDialog.Builder(this)
+            .setTitle("ใบรายการพัสดุ • "+bagId)
+            .setItems(new String[]{
+                "ใบสรุป 1 หน้า A4 สำหรับติดถุง",
+                "รายการ Tracking ทั้งหมด (50 รายการ/หน้า A4)"
+            },(dialog,which)->{
+                try{
+                    if(!BagManifestPrint.print(this,db,bagId,which==0))
+                        message("ยังไม่พบข้อมูลถุงหรือบริการพิมพ์ Android");
+                }catch(Exception e){
+                    new AlertDialog.Builder(this).setTitle("เปิดเมนูพิมพ์ไม่สำเร็จ")
+                        .setMessage(e.getMessage()).setPositiveButton("ตกลง",null).show();
+                }
+            }).setNegativeButton("ยกเลิก",null).show();
+        if(!db.isClosed(bagId))
+            new AlertDialog.Builder(this).setTitle("ถุงยังเปิดอยู่")
+                .setMessage("หากพิมพ์ตอนนี้จะมีข้อความ DRAFT บนเอกสาร และรายการอาจเพิ่มขึ้นในภายหลัง\nสำหรับใช้เป็นหลักฐานหลังแพ็ค ควรปิดถุงก่อน")
+                .setNegativeButton("กลับไปปิดถุง",null)
+                .setPositiveButton("พิมพ์ฉบับร่าง", (d,w)->showChoices.run()).show();
+        else showChoices.run();
+    }
+
     private void showBags(){
         StringBuilder s=new StringBuilder();
         try(Cursor c=db.bagList()){
