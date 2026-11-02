@@ -23,6 +23,11 @@ jobs:
       - name: Install Android SDK
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Verify carrier-specific tracking selection
+        run: |
+          mkdir -p /tmp/pg-barcode-check
+          javac -d /tmp/pg-barcode-check app/src/main/java/com/parcelguard/offline/TrackingSelector.java app/src/test/java/com/parcelguard/offline/TrackingSelectorSmokeTest.java
+          java -cp /tmp/pg-barcode-check com.parcelguard.offline.TrackingSelectorSmokeTest
       - name: Build Debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
       - name: Upload APK

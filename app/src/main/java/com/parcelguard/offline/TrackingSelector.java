@@ -56,6 +56,15 @@ final class TrackingSelector {
     private static boolean isSpx(String s) {return s.matches("SPX[A-Z0-9]{8,23}");}
     private static boolean isJt(String s) {return s.matches("JT[A-Z0-9]{9,22}");}
     private static boolean isFlashSpecific(String s) {return s.matches("FLE[A-Z0-9]{8,22}");}
+    // LEX labels handed to Flash use a separate tracking family, confirmed by
+    // photos of real labels on 2026-11-02: TH39139AU6229B, TH26079AU6233D,
+    // TH50089AU6RU0E. Do NOT accept arbitrary TH numbers as LEX parcels.
+    private static boolean isLexFlashTracking(String s) {
+        return s.matches("TH[0-9]{5}AU[A-Z0-9]{5}");
+    }
+    private static boolean lexFlashBag(String carrier) {
+        return "LEX".equalsIgnoreCase(carrier) || "FLASH".equalsIgnoreCase(carrier);
+    }
     private static boolean isThShared(String s) {return s.matches("TH[A-Z0-9]{10,16}");}
     private static boolean isNumericTracking(String s) {return s.matches("[0-9]{12,16}");}
 
@@ -72,6 +81,9 @@ final class TrackingSelector {
         String s = normalize(raw);
         if (!plausibleCharacters(s) || looksLikeSortingCode(s)) return 0;
         String current = carrier == null ? "Other" : carrier.trim();
+        // This family can travel in LEX/Flash bags, but should not silently
+        // pass as SPX, J&T or Other solely because it starts with TH.
+        if (isLexFlashTracking(s)) return lexFlashBag(current) ? 100 : 0;
         String known = knownCarrier(s);
         if (!known.isEmpty()) {
             if (!known.equalsIgnoreCase(current)) return 0;
@@ -98,6 +110,11 @@ final class TrackingSelector {
             String s = normalize(raw);
             if (!plausibleCharacters(s) || looksLikeSortingCode(s)) {
                 if (!s.isEmpty()) foundSorting = true;
+                continue;
+            }
+            if (isLexFlashTracking(s)) {
+                if (lexFlashBag(carrier)) scores.put(s, 100);
+                else if (!mismatched.contains("LEX/Flash")) mismatched.add("LEX/Flash");
                 continue;
             }
             String known=knownCarrier(s);
