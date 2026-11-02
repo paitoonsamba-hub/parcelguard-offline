@@ -43,6 +43,22 @@ public final class TrackingSelectorSmokeTest {
         expectReview("LEX", "TH263781529981D"); // unknown TH format: do not auto-accept
         expectReview("LEX", "TH39139AU6229B", "TH26079AU6233D"); // two parcels in frame
         expectReview("LEX", "TH39139AU6229B", "LEXPU0720309511");
+        java.util.List<String> ocr=TrackingSelector.printedTextCandidates(
+            "LEX\nTH26079AU6233D\nT-FC2-01\nOrder Number 1126",
+            "LEX");
+        if(ocr.size()!=1 || !ocr.get(0).equals("TH26079AU6233D"))
+            throw new AssertionError("OCR selector failed: "+ocr);
+        tests++;
+        java.util.List<String> separated=TrackingSelector.printedTextCandidates("TH 39139 AU 6229B","LEX");
+        if(separated.size()!=1 || !separated.get(0).equals("TH39139AU6229B"))
+            throw new AssertionError("OCR whitespace normalization failed: "+separated);
+        tests++;
+        if(!TrackingSelector.printedTextCandidates("T-FC2-01\\nH-NAK-A2", "LEX").isEmpty())
+            throw new AssertionError("OCR sorting code leak");
+        tests++;
+        if(!TrackingSelector.printedTextCandidates("TH26079AU6233D", "SPX").isEmpty())
+            throw new AssertionError("OCR wrong carrier leak");
+        tests++;
         System.out.println("TrackingSelector smoke tests passed: " + tests);
     }
 }

@@ -101,6 +101,28 @@ final class TrackingSelector {
         }
     }
 
+
+    /**
+     * On-demand OCR fallback for physically distorted barcodes.
+     * Only accept documented courier families, and ALWAYS ask a human to
+     * confirm the printed number before saving image/video evidence.
+     */
+    static List<String> printedTextCandidates(String rawText, String carrier) {
+        if (rawText == null || rawText.isEmpty()) return Collections.emptyList();
+        java.util.Set<String> found = new java.util.LinkedHashSet<>();
+        java.util.regex.Pattern label = java.util.regex.Pattern.compile(
+                "(?<![A-Z0-9])(?:TH[0-9]{5}AU[A-Z0-9]{5}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
+        for (String line : rawText.toUpperCase(Locale.ROOT).split("\\r?\\n")) {
+            String compact = line.replaceAll("\\s+", "");
+            java.util.regex.Matcher m = label.matcher(compact);
+            while (m.find()) {
+                String value = m.group();
+                if (confidence(value, carrier) >= 70) found.add(value);
+            }
+        }
+        return new ArrayList<>(found);
+    }
+
     static Decision choose(List<String> raws, String carrier) {
         if (raws == null || raws.isEmpty()) return new Decision("", Collections.emptyList(), "");
         Map<String,Integer> scores = new LinkedHashMap<>();

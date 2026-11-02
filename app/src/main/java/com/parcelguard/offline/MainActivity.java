@@ -36,6 +36,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.barcode.*;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+import com.google.mlkit.vision.text.TextRecognizer;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
@@ -73,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
     private long lastSmartWarningAt = 0;
     private String lastSmartWarning = "";
     private int pendingHits = 0, missingFrames = 0;
+    private long lastPendingSeenAt = 0, lastNoBarcodeNoticeAt = 0;
     private boolean armed = true;
     private long lastCaptureAt = 0;
     private boolean enableVideo = false; // Legacy continuous video for one bag
@@ -318,6 +322,23 @@ public class MainActivity extends AppCompatActivity {
             c.drawLine(w-d,h-d,w-d-length,h-d,line);c.drawLine(w-d,h-d,w-d,h-d-length,line);
         }};
         cameraBox.addView(corners,new FrameLayout.LayoutParams(-1,-1));
+        // Tap the scanning area to focus on small, curved or shiny 1D labels.
+        corners.setOnTouchListener((v,event)->{
+            if(event.getAction()==MotionEvent.ACTION_UP){
+                if(boundCamera!=null && preview!=null){
+                    try{
+                        MeteringPoint point=preview.getMeteringPointFactory().createPoint(event.getX(),event.getY());
+                        FocusMeteringAction focus=new FocusMeteringAction.Builder(
+                                point,FocusMeteringAction.FLAG_AF|FocusMeteringAction.FLAG_AE)
+                                .setAutoCancelDuration(5,TimeUnit.SECONDS).build();
+                        boundCamera.getCameraControl().startFocusAndMetering(focus);
+                        message("กำลังปรับโฟกัส • วางบาร์โค้ดให้นิ่ง");
+                    }catch(Exception e){message("ไม่สามารถปรับโฟกัสได้: "+e.getMessage());}
+                }
+                return true;
+            }
+            return true;
+        });
         liveTracking=text("Tracking: —",14);liveTracking.setTextColor(WHITE);
         liveTracking.setBackground(shape(0xDD111820,0,7));
         FrameLayout.LayoutParams tr=new FrameLayout.LayoutParams(-2,-2,Gravity.TOP|Gravity.LEFT);
@@ -347,6 +368,9 @@ public class MainActivity extends AppCompatActivity {
         reviewBarcodeButton=button("⚠  ตรวจเลข Tracking ที่อ่านได้",this::showBarcodeReview);
         reviewBarcodeButton.setVisibility(View.GONE);
         cameraCard.addView(reviewBarcodeButton,spaced(46,7));
+        Button printedText=button("⌕  อ่านเลข Tracking จากตัวอักษร (กรณีบาร์โค้ดไม่ติด)",
+                this::recognizePrintedTracking);
+        cameraCard.addView(printedText,spaced(48,7));
         root.addView(cameraCard,spaced(-2,12));
         addButton(autoVideoEnabled ? "▶  ค้นหา / ดูคลิปพัสดุแต่ละชิ้น" : "▶  ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน",
             ()->{if (autoVideoBusy) {message("กำลังอัดคลิป กรุณารอให้เสร็จก่อน");return;}
@@ -391,6 +415,77 @@ public class MainActivity extends AppCompatActivity {
                 }else recordManualCode(code);
             }).show();
     }
+
+    /** OCR is an explicit fallback, not continuous automatic recognition.
+     * Confirm the number before saving; do not trust OCR as definitive tracking.
+     */
+    private void recognizePrintedTracking() {
+        if(autoVideoBusy || manualEvidenceBusy || reviewDialogOpen){
+            message("กำลังบันทึกหลักฐานของชิ้นก่อน • รอให้เสร็จก่อน");return;
+        }
+        if(db.isClosed(bag)){message("ถุงปิดแล้ว • เปิดถุงใหม่ก่อน");return;}
+        Bitmap snapshot=preview==null?null:preview.getBitmap();
+        if(snapshot==null){message("กล้องยังไม่พร้อม • ลองแตะกล้องให้โฟกัสก่อน");return;}
+        String targetBag=bag;
+        String targetCarrier=db.bagCarrier(targetBag);
+        manualEvidenceBusy=true;
+        message("กำลังอ่านข้อความบนใบปะหน้า...");
+        TextRecognizer reader=TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+        reader.process(InputImage.fromBitmap(snapshot,0))
+            .addOnSuccessListener(result->{
+                reader.close();
+                if(!targetBag.equals(bag) || db.isClosed(targetBag)){
+                    if(!snapshot.isRecycled())snapshot.recycle();
+                    manualEvidenceBusy=false;
+                    message("ถุงถูกเปลี่ยนหรือปิดแล้ว กรุณาลองใหม่");
+                    return;
+                }
+                List<String> possible=TrackingSelector.printedTextCandidates(result.getText(),targetCarrier);
+                if(possible.isEmpty()){
+                    if(!snapshot.isRecycled())snapshot.recycle();
+                    manualEvidenceBusy=false;
+                    new AlertDialog.Builder(this)
+                        .setTitle("ยังอ่านข้อความ Tracking ไม่ได้")
+                        .setMessage("ลองขยับกล่องให้เลขใต้บาร์โค้ดชัดขึ้น แตะเพื่อโฟกัส หรือกรอกเลขจริงด้วยตนเอง")
+                        .setNegativeButton("ลองอีกครั้ง",null)
+                        .setPositiveButton("กรอกเลขเอง",(d,w)->manualCaptureDialog())
+                        .show();
+                    return;
+                }
+                String[] options=possible.toArray(new String[0]);
+                int[] selected={0};
+                new AlertDialog.Builder(this)
+                    .setTitle("ตรวจเลขบนใบปะหน้าก่อนบันทึก")
+                    .setMessage("ระบบอ่านข้อความจากภาพ ไม่ใช่สแกนบาร์โค้ดโดยตรง • กรุณาเทียบเลขทุกตัวกับใบปะหน้าจริง")
+                    .setSingleChoiceItems(options,0,(d,which)->selected[0]=which)
+                    .setNegativeButton("ยกเลิก",(d,w)->{
+                        if(!snapshot.isRecycled())snapshot.recycle();
+                        manualEvidenceBusy=false;
+                    })
+                    .setOnCancelListener(d->{
+                        if(!snapshot.isRecycled())snapshot.recycle();
+                        manualEvidenceBusy=false;
+                    })
+                    .setPositiveButton("เลขถูกต้อง • บันทึก",(d,w)->{
+                        String chosen=options[selected[0]];
+                        if(!targetBag.equals(bag) || db.isClosed(targetBag) || db.exists(chosen)){
+                            if(!snapshot.isRecycled())snapshot.recycle();
+                            manualEvidenceBusy=false;
+                            message("ถุงเปลี่ยน/ปิด หรือเลขนี้บันทึกแล้ว: "+chosen);
+                            return;
+                        }
+                        armed=false;lastRecorded=chosen;lastCaptureAt=System.currentTimeMillis();
+                        ioExecutor.execute(()->saveManualEvidence(chosen,targetBag,snapshot));
+                    }).show();
+            })
+            .addOnFailureListener(err->{
+                reader.close();
+                if(!snapshot.isRecycled())snapshot.recycle();
+                manualEvidenceBusy=false;
+                message("อ่านข้อความจากภาพไม่สำเร็จ • ใช้ถ่ายภาพด้วยมือ: "+err.getMessage());
+            });
+    }
+
     private void recordManualCode(String code){
         if(autoVideoBusy || manualEvidenceBusy || db.isClosed(bag)){message("ยังไม่พร้อมบันทึก • ตรวจสถานะถุง");return;}
         if(db.exists(code)){message("เลขพัสดุซ้ำ: "+code);return;}
@@ -546,7 +641,7 @@ public class MainActivity extends AppCompatActivity {
                 cameraProvider=future.get(); cameraProvider.unbindAll();
                 Preview pv=new Preview.Builder().build(); pv.setSurfaceProvider(preview.getSurfaceProvider());
                 ImageAnalysis analysis = new ImageAnalysis.Builder()
-                    .setTargetResolution(new android.util.Size(1280,720))
+                    .setTargetResolution(new android.util.Size(1920,1080))
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build();
                 analysis.setAnalyzer(cameraExecutor,this::analyze);
                 videoSupported=false; videoCapture=null;
@@ -589,8 +684,20 @@ public class MainActivity extends AppCompatActivity {
             String value=decision.autoTracking;
             if(value.isEmpty()) {
                 missingFrames++;
-                pendingHits=0;pendingCode="";
+                long scanNow=System.currentTimeMillis();
+                // Keep a valid hit through brief MLKit misses on curved/reflective labels.
+                if(!observed.isEmpty() || scanNow-lastPendingSeenAt>1800){
+                    pendingHits=0;pendingCode="";
+                }
                 if(missingFrames>=4 && observed.isEmpty())armed=true;
+                if(observed.isEmpty() && missingFrames>=10
+                        && scanNow-lastNoBarcodeNoticeAt>6000){
+                    lastNoBarcodeNoticeAt=scanNow;
+                    runOnUiThread(()->{
+                        if(active && !autoVideoBusy && !manualEvidenceBusy)
+                            message("ยังอ่านบาร์โค้ดไม่ได้ • แตะภาพเพื่อโฟกัส หรือกดอ่านเลขจากตัวอักษร");
+                    });
+                }
                 if(!decision.message.isEmpty()) {
                     long now=System.currentTimeMillis();
                     if(!decision.message.equals(lastSmartWarning) || now-lastSmartWarningAt>2500){
@@ -621,10 +728,12 @@ public class MainActivity extends AppCompatActivity {
                         if(reviewBarcodeButton!=null)reviewBarcodeButton.setVisibility(View.GONE);
                     }
                 });
-                if(!value.equals(pendingCode)) {
+                long hitTime=System.currentTimeMillis();
+                if(!value.equals(pendingCode) || hitTime-lastPendingSeenAt>1800) {
                     if(!value.equals(lastRecorded))armed=true;
                     pendingCode=value;pendingHits=1;
                 } else pendingHits++;
+                lastPendingSeenAt=hitTime;
                 if(armed && pendingHits>=2 && System.currentTimeMillis()-lastCaptureAt>650) {
                     armed=false;lastRecorded=value;lastCaptureAt=System.currentTimeMillis();
                     saveEvidence(value,frame);
