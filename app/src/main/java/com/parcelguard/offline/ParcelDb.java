@@ -108,6 +108,12 @@ public class ParcelDb extends SQLiteOpenHelper {
         ContentValues v=new ContentValues();v.put("video_file",path);v.put("video_status",state);
         getWritableDatabase().update("parcels",v,"tracking=?",new String[]{tracking});
     }
+    String photoPath(String tracking){
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT photo FROM parcels WHERE tracking=? AND deleted_at=0",new String[]{tracking})){
+            return c.moveToFirst()?c.getString(0):"";
+        }
+    }
     static final class WeightRecord {
         final int actual,ocr; final String source;
         WeightRecord(int actual,int ocr,String source){

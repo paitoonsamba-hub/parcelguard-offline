@@ -9,6 +9,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
 import android.media.Image;
+import android.media.ExifInterface;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.media.AudioAttributes;
@@ -41,6 +42,9 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 import com.google.mlkit.vision.text.TextRecognizer;
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.text.SimpleDateFormat;
 import java.security.MessageDigest;
 import java.util.*;
@@ -392,7 +396,7 @@ public class MainActivity extends AppCompatActivity {
             ()->{if (autoVideoBusy) {message("กำลังอัดคลิป กรุณารอให้เสร็จก่อน");return;}
                   if(autoVideoEnabled)showHistory();else manageCurrentBagVideo();});
         TextView note=text(autoVideoEnabled
-            ? "สแกนสำเร็จ → บันทึก JPEG → อัดวิดีโอ "+autoVideoSeconds+" วินาที → เสียง 'บันทึกแล้ว' เมื่อ MP4 สำเร็จ • อย่าวางชิ้นถัดไประหว่างอัด"
+            ? "สแกน → ภาพสำรอง → MP4 "+autoVideoSeconds+" วิ → ถ่าย JPEG ใหม่ → เสียง 'บันทึกแล้ว' • อย่ายกกล่องก่อนจบขั้นตอน"
             : "กล้องสแกนอัตโนมัติเมื่อวางพัสดุใต้กล้อง • มีเสียง 'บันทึกแล้ว' เมื่อเก็บหลักฐานสำเร็จ • โหมดวิดีโอต่อเนื่องเปิดได้ในตั้งค่า",12);
         note.setTextColor(MUTED);root.addView(note,spaced(-2,8));
         updateCount();
@@ -807,8 +811,10 @@ public class MainActivity extends AppCompatActivity {
             final String targetBag=bag;
             runOnUiThread(()->{
                 updateCount();
-                if(hybridSync!=null)hybridSync.request();
+                // Prevent hybrid sync from sending the early scan photo while
+                // the MP4 and final post-clip still image are pending.
                 if(autoVideoEnabled)beginParcelVideo(tracking,targetBag);
+                else if(hybridSync!=null)hybridSync.request();
                 else {message("✓ บันทึกภาพ: "+tracking+" • ใส่ถุงได้");announceSaved();}
             });
         }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->message("ถ่ายภาพผิดพลาด: "+e.getMessage()));}
@@ -877,10 +883,9 @@ public class MainActivity extends AppCompatActivity {
             .show();
     }
 
-    /** After a JPEG+database row are saved, record one independent MP4 per Tracking.
-     *  Switch from Preview+ImageAnalysis to Preview+VideoCapture during the clip.
-     *  This avoids requiring 3 simultaneous camera use cases on budget Samsung devices.
-     *  Scanner is fully paused until VideoRecordEvent.Finalize is received.
+    /** The scan JPEG is a fallback. Record an independent MP4 per parcel,
+     *  then capture a fresh still JPEG after video finalization.
+     *  Scanner is paused until both steps are resolved, avoiding mixed-tracking evidence.
      */
     private void beginParcelVideo(String tracking,String targetBag) {
         if(!autoVideoEnabled){message("✓ บันทึกภาพ: "+tracking);announceSaved();return;}
@@ -937,30 +942,18 @@ public class MainActivity extends AppCompatActivity {
                     if(videoStopTask!=null){videoHandler.removeCallbacks(videoStopTask);videoStopTask=null;}
                     boolean clipOk=!fin.hasError() && autoVideoTimerCompleted
                             && videoFile.isFile() && videoFile.length()>1024;
+                    recording=null;recordingStarting=false;videoCapture=null;
                     if(clipOk){
-                        if(clipIndicator!=null){
-                            clipIndicator.setText("✓ MP4 สำเร็จ");
-                            clipIndicator.setBackground(shape(0xDD0C6748,0,8));
-                            videoHandler.postDelayed(()->{if(!autoVideoBusy && clipIndicator!=null)
-                                clipIndicator.setVisibility(View.GONE);},1800);
-                        }
-                        db.setParcelVideo(clipTracking,videoFile.getAbsolutePath());
-                        if(hybridSync!=null)hybridSync.request();
-                        recentClipResult="✓ บันทึกภาพและวิดีโอแล้ว: "+clipTracking+" • วางชิ้นต่อไปได้";
+                        if(clipIndicator!=null){clipIndicator.setText("✓ MP4 จบ • กำลังถ่าย JPEG");
+                            clipIndicator.setBackground(shape(0xDD0C6748,0,8));}
+                        captureStillAfterVideo(clipTracking,clipBag,videoFile);
                     }else{
                         if(clipIndicator!=null){clipIndicator.setText("⚠ คลิปล้มเหลว");
                             clipIndicator.setBackground(shape(0xDD9B1C1C,0,8));}
                         db.markParcelVideoFailed(clipTracking);
                         if(videoFile.isFile())videoFile.delete();
-                        recentClipResult="⚠ บันทึกภาพแล้ว แต่วิดีโอไม่สำเร็จ: "+clipTracking;
+                        finishPostVideo(clipTracking,false,false);
                     }
-                    recording=null;recordingStarting=false;
-                    autoVideoBusy=false;autoVideoTracking="";autoVideoBag="";
-                    videoCapture=null;
-                    if(active){startCamera();}
-                    if(active)message(recentClipResult);
-                    if(clipOk)announceSaved();
-                    else tones.startTone(ToneGenerator.TONE_PROP_NACK,300);
                 }
             });
         }catch(Exception e){
@@ -974,6 +967,146 @@ public class MainActivity extends AppCompatActivity {
             message(recentClipResult);tones.startTone(ToneGenerator.TONE_PROP_NACK,300);
         }
     }
+
+    /**
+     * When MP4 finishes, bind Preview+ImageCapture and take a new JPEG.
+     * One scan photo already exists and is kept if the second photo fails.
+     * A watchdog prevents blocking the packing workflow forever.
+     */
+    private void captureStillAfterVideo(String tracking,String targetBag,File videoFile){
+        if(!active || cameraProvider==null || preview==null || !targetBag.equals(bag)){
+            db.setParcelVideo(tracking,videoFile.getAbsolutePath());
+            finishPostVideo(tracking,true,false);return;
+        }
+        final File temporary=new File(getCacheDir(),"after-video-"+UUID.randomUUID()+".jpg");
+        final AtomicBoolean finished=new AtomicBoolean(false);
+        final Runnable timeout=()->{
+            if(!finished.compareAndSet(false,true))return;
+            temporary.delete();
+            db.setParcelVideo(tracking,videoFile.getAbsolutePath());
+            finishPostVideo(tracking,true,false);
+        };
+        try{
+            message("● MP4 เสร็จแล้ว • กำลังถ่ายภาพนิ่ง กรุณาวางพัสดุไว้ต่อ");
+            cameraProvider.unbindAll();
+            Preview pv=new Preview.Builder().build();
+            pv.setSurfaceProvider(preview.getSurfaceProvider());
+            ImageCapture still=new ImageCapture.Builder()
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build();
+            boundCamera=cameraProvider.bindToLifecycle(this,
+                    CameraSelector.DEFAULT_BACK_CAMERA,pv,still);
+            if(torch && boundCamera.getCameraInfo().hasFlashUnit())
+                boundCamera.getCameraControl().enableTorch(true);
+            videoHandler.postDelayed(timeout,12000);
+            still.takePicture(new ImageCapture.OutputFileOptions.Builder(temporary).build(),
+                    ContextCompat.getMainExecutor(this),new ImageCapture.OnImageSavedCallback(){
+                @Override public void onImageSaved(@NonNull ImageCapture.OutputFileResults result){
+                    if(!finished.compareAndSet(false,true)){temporary.delete();return;}
+                    videoHandler.removeCallbacks(timeout);
+                    // JPEG processing can be expensive: use I/O executor.
+                    ioExecutor.execute(()->{
+                        boolean saved=false;
+                        try{saved=replaceWithPostVideoPhoto(tracking,targetBag,temporary);}
+                        catch(Exception ignored){/* keep scan JPEG */}
+                        finally{temporary.delete();}
+                        final boolean photoOk=saved;
+                        runOnUiThread(()->{
+                            db.setParcelVideo(tracking,videoFile.getAbsolutePath());
+                            finishPostVideo(tracking,true,photoOk);
+                        });
+                    });
+                }
+                @Override public void onError(@NonNull ImageCaptureException error){
+                    if(!finished.compareAndSet(false,true))return;
+                    videoHandler.removeCallbacks(timeout);
+                    temporary.delete();
+                    db.setParcelVideo(tracking,videoFile.getAbsolutePath());
+                    finishPostVideo(tracking,true,false);
+                }
+            });
+        }catch(Exception e){
+            if(!finished.compareAndSet(false,true))return;
+            videoHandler.removeCallbacks(timeout);
+            temporary.delete();
+            db.setParcelVideo(tracking,videoFile.getAbsolutePath());
+            finishPostVideo(tracking,true,false);
+        }
+    }
+
+    /** Swap only after the new JPEG was fully encoded and flushed to disk. */
+    private boolean replaceWithPostVideoPhoto(String tracking,String targetBag,File temp) throws IOException {
+        if(!temp.isFile() || temp.length()<1024)return false;
+        String oldPath=db.photoPath(tracking);
+        if(oldPath.isEmpty())return false;
+        File original=new File(oldPath);
+        BitmapFactory.Options option=new BitmapFactory.Options();
+        option.inSampleSize=2;
+        Bitmap decoded=BitmapFactory.decodeFile(temp.getAbsolutePath(),option);
+        if(decoded==null)return false;
+        Bitmap upright=null,marked=null;
+        File pending=null;
+        try{
+            int orientation=new ExifInterface(temp.getAbsolutePath())
+                .getAttributeInt(ExifInterface.TAG_ORIENTATION,ExifInterface.ORIENTATION_NORMAL);
+            Matrix matrix=new Matrix();
+            switch(orientation){
+                case ExifInterface.ORIENTATION_ROTATE_90:matrix.postRotate(90);break;
+                case ExifInterface.ORIENTATION_ROTATE_180:matrix.postRotate(180);break;
+                case ExifInterface.ORIENTATION_ROTATE_270:matrix.postRotate(270);break;
+                case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:matrix.postScale(-1,1);break;
+                case ExifInterface.ORIENTATION_FLIP_VERTICAL:matrix.postScale(1,-1);break;
+                default: break;
+            }
+            upright=Bitmap.createBitmap(decoded,0,0,decoded.getWidth(),decoded.getHeight(),matrix,true);
+            marked=upright.copy(Bitmap.Config.ARGB_8888,true);
+            if(marked==null)throw new IOException("สร้าง JPEG ใหม่ไม่ได้");
+            Canvas canvas=new Canvas(marked);
+            Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+            p.setColor(0xD0000000);
+            canvas.drawRect(0,0,marked.getWidth(),dp(110),p);
+            p.setColor(WHITE);
+            p.setTypeface(Typeface.create(Typeface.DEFAULT,Typeface.BOLD));
+            p.setTextSize(dp(19));canvas.drawText("TRACKING: "+tracking,dp(14),dp(31),p);
+            p.setTextSize(dp(14));canvas.drawText(targetBag,dp(14),dp(62),p);
+            canvas.drawText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",Locale.US)
+                    .format(new Date()),dp(14),dp(89),p);
+            pending=new File(original.getParentFile(),original.getName()+".pending");
+            try(FileOutputStream fos=new FileOutputStream(pending)){
+                if(!marked.compress(Bitmap.CompressFormat.JPEG,85,fos))
+                    throw new IOException("เข้ารหัส JPEG ใหม่ไม่สำเร็จ");
+                fos.getFD().sync();
+            }
+            try{
+                Files.move(pending.toPath(),original.toPath(),
+                    StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
+            }catch(AtomicMoveNotSupportedException notSupported){
+                Files.move(pending.toPath(),original.toPath(),StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        }finally{
+            if(pending!=null)pending.delete();
+            if(marked!=null)marked.recycle();
+            if(upright!=null && upright!=decoded)upright.recycle();
+            decoded.recycle();
+        }
+    }
+
+    private void finishPostVideo(String tracking,boolean videoOk,boolean photoAfterOk){
+        autoVideoBusy=false;autoVideoTracking="";autoVideoBag="";
+        if(videoOk && photoAfterOk)
+            recentClipResult="✓ MP4 + ภาพหลังวิดีโอสำเร็จ: "+tracking+" • ยกกล่องได้แล้ว";
+        else if(videoOk)
+            recentClipResult="⚠ MP4 สำเร็จ แต่ภาพหลังคลิปพลาด • ใช้ภาพตอนสแกนแทน: "+tracking;
+        else
+            recentClipResult="⚠ วิดีโอไม่สำเร็จ • เก็บภาพตอนสแกนไว้: "+tracking;
+        if(hybridSync!=null)hybridSync.request();
+        if(active)startCamera();
+        if(active)message(recentClipResult);
+        if(clipIndicator!=null)clipIndicator.setVisibility(View.GONE);
+        if(videoOk && photoAfterOk)announceSaved();
+        else tones.startTone(ToneGenerator.TONE_PROP_NACK,250);
+    }
+
     private void countdownParcelVideo(String tracking,long started,int duration){
         if(!autoVideoBusy || !autoVideoTracking.equals(tracking) || autoVideoStart!=started)return;
         int left=Math.max(1,(int)Math.ceil((duration*1000-(System.currentTimeMillis()-started))/1000.0));
