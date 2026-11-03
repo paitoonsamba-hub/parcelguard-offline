@@ -219,6 +219,17 @@ public class MainActivity extends AppCompatActivity {
                     .append(c.getInt(2)==1?"  [ปิด]":"  [เปิด]").append("\n");}
         }
         summary.addView(prominent(totalBags+" ถุง  •  "+totalScans+" พัสดุ",21,WHITE));
+        try(Cursor st=db.weightStats()){
+            if(st.moveToFirst()){
+                int weighed=st.getInt(1),confirmed=st.getInt(2),corrected=st.getInt(3),manual=st.getInt(4);
+                int checked=confirmed+corrected;
+                summary.addView(text("น้ำหนัก: "+weighed+"/"+st.getInt(0)+
+                    " ชิ้น • OCR ตรวจแล้ว "+checked+" (แก้ไข "+corrected+") • กรอกเอง "+manual,12));
+                if(checked>0)summary.addView(text("อัตราแก้ไข OCR: "+
+                    String.format(Locale.US,"%.1f%%",100.0*corrected/checked)+
+                    " จากตัวอย่างที่ตรวจด้วยคน (ไม่ใช่ค่าความแม่นยำที่รับรอง)",12));
+            }
+        }
         root.addView(summary,spaced(-2,10));
         root.addView(prominent("รายการถุง",16,WHITE),spaced(-2,14));
         TextView all=text(lines.length()==0?"ยังไม่มีข้อมูล":lines.toString(),13);all.setTextColor(MUTED);root.addView(all);
@@ -226,6 +237,7 @@ public class MainActivity extends AppCompatActivity {
         addButton("ส่งออก ZIP ถุงปัจจุบัน",()->exportZip(bag));
         addButton("ดูสถานะถุงทั้งหมด",this::showBags);
         addButton("▤ พิมพ์ A4 / บันทึก PDF รายการพัสดุ",this::chooseBagToPrint);
+        root.addView(text("ทดลองน้ำหนัก: สแกนเสร็จแล้ววางพัสดุบนตาชั่ง • กลับหน้าแพ็ค กด 'ทดลองอ่านน้ำหนักตาชั่ง OCR' • ต้องตรวจเลขกับจอจริงก่อนบันทึก",12));
         root.addView(text("พิมพ์ผ่าน Android Print: เลือกเครื่องพิมพ์ที่เชื่อมต่อ หรือเลือก Save as PDF • ถุง 100 ชิ้นแบ่ง 2 หน้าอัตโนมัติ",12));
         root.addView(text("ข้อมูลอยู่ในมือถือเครื่องนี้เท่านั้น • ควรสำรองหลักฐานทั้งรูปและคลิปออกเป็น ZIP เป็นประจำ",12));
     }
@@ -373,6 +385,8 @@ public class MainActivity extends AppCompatActivity {
         Button printedText=button("⌕  อ่านเลข Tracking จากตัวอักษร (กรณีบาร์โค้ดไม่ติด)",
                 this::recognizePrintedTracking);
         cameraCard.addView(printedText,spaced(48,7));
+        Button scale=button("⚖  ทดลองอ่านน้ำหนักตาชั่ง (OCR)",this::openScaleOcr);
+        cameraCard.addView(scale,spaced(50,7));
         root.addView(cameraCard,spaced(-2,12));
         addButton(autoVideoEnabled ? "▶  ค้นหา / ดูคลิปพัสดุแต่ละชิ้น" : "▶  ดู / แชร์ / จัดการวิดีโอถุงปัจจุบัน",
             ()->{if (autoVideoBusy) {message("กำลังอัดคลิป กรุณารอให้เสร็จก่อน");return;}
@@ -1023,6 +1037,22 @@ public class MainActivity extends AppCompatActivity {
     }
     private void stopVideo() {if(recording!=null){recording.stop();recording=null;message("กำลังปิดไฟล์วิดีโอ...");}}
 
+    private void openScaleOcr(){
+        if(autoVideoBusy || manualEvidenceBusy || reviewDialogOpen || recordingStarting) {
+            message("กรุณารออัดคลิปและบันทึกหลักฐานให้เสร็จก่อนอ่านน้ำหนัก");
+            return;
+        }
+        if(db.isClosed(bag)){
+            message("ถุงปิดแล้ว • เลือกแก้น้ำหนักจากเมนูประวัติแทน");
+            return;
+        }
+        reviewDialogOpen=true; // freezes automatic barcode capture during OCR
+        if(!ScaleOcrTrial.show(this,db,preview,bag,getPreferences(0),
+            ()->reviewDialogOpen=false,
+            ()->message("บันทึกน้ำหนัก OCR แล้ว • ดูได้ในประวัติและ A4")))
+            reviewDialogOpen=false;
+    }
+
     private void showHistory(){pauseCamera();base("ค้นหา Tracking / รหัสถุง และดูหลักฐานย้อนหลัง");
         query=new EditText(this);query.setTextColor(WHITE);query.setSingleLine(true);query.setHintTextColor(Color.LTGRAY);query.setHint("Tracking บางส่วนหรือรหัสถุง");root.addView(query);
         dateFrom=new EditText(this); dateFrom.setTextColor(WHITE);dateFrom.setHintTextColor(Color.LTGRAY);dateFrom.setSingleLine(true);
@@ -1067,6 +1097,10 @@ public class MainActivity extends AppCompatActivity {
         content.addView(text(clipFile!=null && clipFile.isFile()
             ? "วิดีโอคลิปพัสดุพร้อมดู • "+(clipFile.length()/1024)+" KB"
             : "ภาพหลักฐาน"+(db.parcelVideoState(tracking)==3?" • ⚠ วิดีโอไม่สำเร็จ":" • ไม่มีคลิปวิดีโอ"),13));
+        ParcelDb.WeightRecord weight=db.weight(tracking);
+        content.addView(text(weight.actual<0?"น้ำหนัก: ยังไม่ได้บันทึก":
+            String.format(Locale.US,"น้ำหนัก: %.3f kg (%s)",weight.actual/1000.0,
+                weight.source.startsWith("ocr")?"ตรวจ OCR แล้ว":"กรอกเอง"),13));
         if(file.isFile()){
             ImageView image=new ImageView(this);BitmapFactory.Options opts=new BitmapFactory.Options();opts.inSampleSize=2;
             image.setImageBitmap(BitmapFactory.decodeFile(path,opts));image.setAdjustViewBounds(true);
@@ -1079,11 +1113,16 @@ public class MainActivity extends AppCompatActivity {
             dlg.setNeutralButton("ลบถาวร",(d,w)->confirmPermanent(tracking,path));
         }else{
             dlg.setPositiveButton("แชร์รูป",(d,w)->shareFile(file,"image/jpeg"));
-            dlg.setNeutralButton("เพิ่มเติม",(d,w)->new AlertDialog.Builder(this).setItems(new String[]{"เปิดคลิปวิดีโอของพัสดุนี้", "ย้ายไปถังขยะ"},(d2,index)->{
+            dlg.setNeutralButton("เพิ่มเติม",(d,w)->new AlertDialog.Builder(this)
+                .setItems(new String[]{"เปิดคลิปวิดีโอของพัสดุนี้", "บันทึก/แก้ไขน้ำหนัก (กรอกเอง)",
+                    "ย้ายไปถังขยะ"},(d2,index)->{
                 if(index==0){
                     String parcelClip=db.parcelVideoPath(tracking);
                     if(!parcelClip.isEmpty() && new File(parcelClip).isFile())playParcelVideo(tracking);
                     else playVideo(bagId,offset); // Backward compatible with older bag videos.
+                }else if(index==1){
+                    ScaleOcrTrial.manualEntry(this,db,tracking,
+                        ()->message("บันทึกน้ำหนักแล้ว: "+tracking));
                 }else{
                     new AlertDialog.Builder(this).setMessage("ย้าย "+tracking+" ไปถังขยะหรือไม่?")
                         .setNegativeButton("ยกเลิก",null).setPositiveButton("ย้าย",(d3,whichButton)->{db.trash(tracking);showHistory();}).show();

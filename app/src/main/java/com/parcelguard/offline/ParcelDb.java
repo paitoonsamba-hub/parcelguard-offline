@@ -7,11 +7,11 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 public class ParcelDb extends SQLiteOpenHelper {
-    public ParcelDb(Context context) { super(context, "parcelguard.db", null, 3); }
+    public ParcelDb(Context context) { super(context, "parcelguard.db", null, 4); }
 
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE bags(id TEXT PRIMARY KEY, carrier TEXT NOT NULL, closed INTEGER DEFAULT 0, created_at INTEGER, expected_count INTEGER DEFAULT 0, video_path TEXT DEFAULT '', video_started INTEGER DEFAULT 0)");
-        db.execSQL("CREATE TABLE parcels(tracking TEXT PRIMARY KEY, bag_id TEXT NOT NULL, photo TEXT NOT NULL, scanned_at INTEGER, deleted_at INTEGER DEFAULT 0, video_offset_ms INTEGER DEFAULT -1, video_file TEXT DEFAULT '', video_status INTEGER DEFAULT 0)");
+        db.execSQL("CREATE TABLE parcels(tracking TEXT PRIMARY KEY, bag_id TEXT NOT NULL, photo TEXT NOT NULL, scanned_at INTEGER, deleted_at INTEGER DEFAULT 0, video_offset_ms INTEGER DEFAULT -1, video_file TEXT DEFAULT '', video_status INTEGER DEFAULT 0, weight_g INTEGER DEFAULT NULL, ocr_weight_g INTEGER DEFAULT NULL, weight_source TEXT DEFAULT '', weighed_at INTEGER DEFAULT 0)");
         db.execSQL("CREATE INDEX idx_bag ON parcels(bag_id)");
         db.execSQL("CREATE INDEX idx_scanned ON parcels(scanned_at)");
     }
@@ -29,6 +29,12 @@ public class ParcelDb extends SQLiteOpenHelper {
         if(oldV < 3){
             db.execSQL("ALTER TABLE parcels ADD COLUMN video_file TEXT DEFAULT ''");
             db.execSQL("ALTER TABLE parcels ADD COLUMN video_status INTEGER DEFAULT 0");
+        }
+        if(oldV < 4) {
+            db.execSQL("ALTER TABLE parcels ADD COLUMN weight_g INTEGER DEFAULT NULL");
+            db.execSQL("ALTER TABLE parcels ADD COLUMN ocr_weight_g INTEGER DEFAULT NULL");
+            db.execSQL("ALTER TABLE parcels ADD COLUMN weight_source TEXT DEFAULT ''");
+            db.execSQL("ALTER TABLE parcels ADD COLUMN weighed_at INTEGER DEFAULT 0");
         }
     }
 
@@ -101,6 +107,45 @@ public class ParcelDb extends SQLiteOpenHelper {
     private void setParcelVideoState(String tracking,String path,int state){
         ContentValues v=new ContentValues();v.put("video_file",path);v.put("video_status",state);
         getWritableDatabase().update("parcels",v,"tracking=?",new String[]{tracking});
+    }
+    static final class WeightRecord {
+        final int actual,ocr; final String source;
+        WeightRecord(int actual,int ocr,String source){
+            this.actual=actual;this.ocr=ocr;this.source=source;
+        }
+    }
+    WeightRecord weight(String tracking){
+        try(Cursor c=getReadableDatabase().rawQuery(
+                "SELECT weight_g,ocr_weight_g,weight_source FROM parcels WHERE tracking=? AND deleted_at=0",
+                new String[]{tracking})){
+            if(!c.moveToFirst())return new WeightRecord(-1,-1,"");
+            return new WeightRecord(c.isNull(0)?-1:c.getInt(0),
+                c.isNull(1)?-1:c.getInt(1),c.getString(2)==null?"":c.getString(2));
+        }
+    }
+    boolean setWeight(String tracking,Integer corrected,Integer recognized,String source){
+        if(corrected!=null && (corrected<1 || corrected>100000))return false;
+        ContentValues v=new ContentValues();
+        if(corrected==null){
+            v.putNull("weight_g");v.putNull("ocr_weight_g");
+            v.put("weight_source","");v.put("weighed_at",0L);
+        }else{
+            v.put("weight_g",corrected);
+            if(recognized==null || recognized<1)v.putNull("ocr_weight_g");
+            else v.put("ocr_weight_g",recognized);
+            v.put("weight_source",source);
+            v.put("weighed_at",System.currentTimeMillis());
+        }
+        return getWritableDatabase().update("parcels",v,
+            "tracking=? AND deleted_at=0",new String[]{tracking})>0;
+    }
+    Cursor weightStats(){
+        return getReadableDatabase().rawQuery(
+            "SELECT COUNT(*), SUM(CASE WHEN weight_g IS NOT NULL THEN 1 ELSE 0 END),"
+            +" SUM(CASE WHEN weight_source='ocr_verified' THEN 1 ELSE 0 END),"
+            +" SUM(CASE WHEN weight_source='ocr_corrected' THEN 1 ELSE 0 END),"
+            +" SUM(CASE WHEN weight_source='manual' THEN 1 ELSE 0 END)"
+            +" FROM parcels WHERE deleted_at=0",null);
     }
     String parcelVideoPath(String tracking){
         try(Cursor c=getReadableDatabase().rawQuery("SELECT video_file FROM parcels WHERE tracking=?",new String[]{tracking})){

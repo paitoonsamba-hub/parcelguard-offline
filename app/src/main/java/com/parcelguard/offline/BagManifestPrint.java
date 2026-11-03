@@ -40,8 +40,11 @@ import java.util.EnumMap;
  */
 final class BagManifestPrint {
     static final class Entry {
-        final String tracking; final long scannedAt;
-        Entry(String tracking,long scannedAt){this.tracking=tracking;this.scannedAt=scannedAt;}
+        final String tracking; final long scannedAt; final int weight; final String source;
+        Entry(String tracking,long scannedAt,int weight,String source) {
+            this.tracking=tracking;this.scannedAt=scannedAt;
+            this.weight=weight;this.source=source;
+        }
     }
     static final class Snapshot {
         final String id, carrier, digest;
@@ -54,6 +57,8 @@ final class BagManifestPrint {
             this.digest=fingerprint(id,this.entries);
         }
         int count(){return entries.size();}
+        int weighed(){int n=0;for(Entry e:entries)if(e.weight>=0)n++;return n;}
+        long totalGrams(){long n=0;for(Entry e:entries)if(e.weight>=0)n+=e.weight;return n;}
     }
 
     private static String fingerprint(String id,List<Entry> entries) {
@@ -63,6 +68,10 @@ final class BagManifestPrint {
             for(Entry entry:entries) {
                 sha.update((byte)'\n');
                 sha.update(entry.tracking.getBytes("UTF-8"));
+                sha.update((byte)'|');
+                sha.update(Integer.toString(entry.weight).getBytes("UTF-8"));
+                sha.update((byte)'|');
+                sha.update(entry.source.getBytes("UTF-8"));
             }
             byte[] bytes=sha.digest();
             StringBuilder out=new StringBuilder();
@@ -81,7 +90,11 @@ final class BagManifestPrint {
         }
         List<Entry> entries=new ArrayList<>();
         try(Cursor c=db.bagActive(id)){
-            while(c.moveToNext())entries.add(new Entry(c.getString(0),c.getLong(3)));
+            while(c.moveToNext()){
+                String tracking=c.getString(0);
+                ParcelDb.WeightRecord weight=db.weight(tracking);
+                entries.add(new Entry(tracking,c.getLong(3),weight.actual,weight.source));
+            }
         }
         // Consistent chronological sequence; do not include trashed records.
         Collections.sort(entries,(left,right)->{
@@ -216,8 +229,8 @@ final class BagManifestPrint {
         float l=bounds.left+6,r=bounds.right-6,t=bounds.top+6;
         float split=(r-l-18)/2f;
         int from=BagManifestPages.first(page),to=BagManifestPages.lastExclusive(page,data.count());
-        label(c,l,t+153,"NO.   TRACKING / SCANNED TIME",9,true);
-        label(c,l+split+18,t+153,"NO.   TRACKING / SCANNED TIME",9,true);
+        label(c,l,t+153,"NO.  TRACKING / TIME / WEIGHT",9,true);
+        label(c,l+split+18,t+153,"NO.  TRACKING / TIME / WEIGHT",9,true);
         float firstY=t+175;
         // Fit 25 rows per column while reserving a signature / verification footer.
         float available=(bounds.bottom-6-83)-firstY;
@@ -233,11 +246,17 @@ final class BagManifestPrint {
             if(code.measureText(entry.tracking)>split-26)
                 code.setTextSize(9.2f);
             c.drawText(entry.tracking,x+25,y,code);
-            label(c,x+25,y+10,date(entry.scannedAt),7.3f,false);
+            String weight=entry.weight<0?"-- kg (not weighed)":
+                String.format(Locale.US,"%.3f kg%s",entry.weight/1000.0,
+                entry.source.startsWith("ocr")?" (OCR)":" (manual)");
+            label(c,x+25,y+10,date(entry.scannedAt)+"   "+weight,7.0f,false);
         }
         float foot=bounds.bottom-6-66;
         line(c,l,foot,r,Color.DKGRAY);
-        label(c,l,foot+16,"This document lists parcels scanned by the shop; it is NOT courier receipt proof.",8,false);
+        label(c,l,foot+13,"Recorded weights: "+data.weighed()+"/"+data.count()+
+            "   TOTAL: "+String.format(Locale.US,"%.3f kg",data.totalGrams()/1000.0)+
+            (data.weighed()<data.count()?" (PARTIAL)":" (COMPLETE)"),9,true);
+        label(c,l,foot+23,"Shop manifest, NOT confirmation that courier received individual parcels.",8,false);
         label(c,l,foot+32,"Packed by: ____________________   Checked by: ____________________",9,false);
         label(c,l,foot+47,"Bag ID: "+data.id,8,false);
         label(c,r-100,foot+47,"PAGE "+(page+1)+" / "+pages,9,true);
@@ -255,7 +274,11 @@ final class BagManifestPrint {
         label(c,l,t+335,"PACKED & SCANNED",13,true);
         label(c,l,t+396,String.format(Locale.US,"%d PARCELS",data.count()),34,true);
         if(data.expected>0)label(c,l,t+429,"Declared target: "+data.expected,11,false);
-        label(c,l,t+475,data.closed?"Closed in ParcelGuard":"DRAFT - STILL OPEN",14,true);
+        label(c,l,t+453,"WEIGHED: "+data.weighed()+"/"+data.count()+" parcels",11,true);
+        label(c,l,t+475,"TOTAL RECORDED WEIGHT: "+
+            String.format(Locale.US,"%.3f kg",data.totalGrams()/1000.0)+
+            (data.weighed()<data.count()?" (PARTIAL)":""),12,true);
+        label(c,l,t+493,data.closed?"Closed in ParcelGuard":"DRAFT - STILL OPEN",11,true);
         label(c,l,t+511,"Manifest ID: "+data.digest,10,false);
         label(c,l,t+542,"Print full Tracking list separately when required.",11,false);
         float sign=Math.min(t+601,bounds.bottom-6-106);

@@ -33,6 +33,11 @@ jobs:
           mkdir -p /tmp/pg-manifest-check
           javac -d /tmp/pg-manifest-check app/src/main/java/com/parcelguard/offline/BagManifestPages.java app/src/test/java/com/parcelguard/offline/BagManifestPagesSmokeTest.java
           java -cp /tmp/pg-manifest-check com.parcelguard.offline.BagManifestPagesSmokeTest
+      - name: Verify scale OCR parsing and stability
+        run: |
+          mkdir -p /tmp/pg-weight-check
+          javac -d /tmp/pg-weight-check app/src/main/java/com/parcelguard/offline/ScaleWeightParser.java app/src/test/java/com/parcelguard/offline/ScaleWeightParserSmokeTest.java
+          java -cp /tmp/pg-weight-check com.parcelguard.offline.ScaleWeightParserSmokeTest
       - name: Build Debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
       - name: Upload APK
