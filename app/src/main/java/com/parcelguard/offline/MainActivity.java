@@ -223,6 +223,16 @@ public class MainActivity extends AppCompatActivity {
                     .append(c.getInt(2)==1?"  [ปิด]":"  [เปิด]").append("\n");}
         }
         summary.addView(prominent(totalBags+" ถุง  •  "+totalScans+" พัสดุ",21,WHITE));
+        try(Cursor trial=db.scaleTrialStats()){
+            if(trial.moveToFirst()){
+                int attempts=trial.getInt(0),stable=trial.getInt(1);
+                int verified=trial.getInt(2),corrected=trial.getInt(3);
+                if(attempts>0)summary.addView(text(
+                    "ทดลองอ่านตาชั่ง OCR "+attempts+" ครั้ง • อ่านนิ่ง "+stable+
+                    " ("+String.format(Locale.US,"%.1f%%",stable*100.0/attempts)+")"+
+                    " • ยืนยัน "+verified+" • แก้เลข OCR "+corrected,12));
+            }
+        }
         try(Cursor st=db.weightStats()){
             if(st.moveToFirst()){
                 int weighed=st.getInt(1),confirmed=st.getInt(2),corrected=st.getInt(3),manual=st.getInt(4);
@@ -922,7 +932,7 @@ public class MainActivity extends AppCompatActivity {
             videoCapture=VideoCapture.withOutput(recorder);
             boundCamera=cameraProvider.bindToLifecycle(this,CameraSelector.DEFAULT_BACK_CAMERA,pv,videoCapture);
             if(torch && boundCamera.getCameraInfo().hasFlashUnit())boundCamera.getCameraControl().enableTorch(true);
-            message("● เริ่มวิดีโอ "+duration+" วินาที: ใส่พัสดุลงถุง ("+tracking+")");
+            message("● เริ่ม MP4 "+duration+" วิ • กรุณาวางกล่องใต้กล้องจนถ่าย JPEG หลังคลิปเสร็จ ("+tracking+")");
             PendingRecording pending=videoCapture.getOutput().prepareRecording(this,
                     new FileOutputOptions.Builder(videoFile).build());
             recording=pending.start(ContextCompat.getMainExecutor(this),event->{
@@ -1115,7 +1125,7 @@ public class MainActivity extends AppCompatActivity {
             clipIndicator.setBackground(shape(0xEE9B1C1C,0,8));
             clipIndicator.setVisibility(View.VISIBLE);
         }
-        message("● กำลังอัดคลิป "+left+" วิ • ใส่พัสดุลงถุง • "+tracking);
+        message("● กำลังอัดคลิป "+left+" วิ • อย่าเพิ่งยกกล่องจนได้ยินเสียงบันทึกแล้ว • "+tracking);
         if(left>1)videoHandler.postDelayed(()->countdownParcelVideo(tracking,started,duration),650);
     }
     private void playParcelVideo(String tracking){

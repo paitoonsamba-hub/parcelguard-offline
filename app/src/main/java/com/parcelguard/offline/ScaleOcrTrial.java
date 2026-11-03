@@ -206,6 +206,7 @@ final class ScaleOcrTrial {
         boolean busy=true;
         private boolean cancelled=false;
         private int index=0;
+        private long trialId=-1;
         Session(Activity a,AlertDialog parent,ParcelDb db,PreviewView camera,RegionView region,
                 String tracking,ScaleWeightParser.Unit unit,Button start,Spinner parcel,Spinner units,
                 TextView output,Runnable onSaved){
@@ -254,6 +255,7 @@ final class ScaleOcrTrial {
             start.setEnabled(true);parcel.setEnabled(true);units.setEnabled(true);
             reader.close();
             ScaleWeightParser.Stability stable=ScaleWeightParser.evaluate(samples);
+            trialId=db.addScaleTrial(tracking,stable.stable(),stable.grams);
             StringBuilder details=new StringBuilder("ค่าที่ OCR อ่านได้:\n");
             for(int i=0;i<samples.size();i++){
                 ScaleWeightParser.Sample s=samples.get(i);
@@ -294,6 +296,7 @@ final class ScaleOcrTrial {
                         String source=actual==rawGrams?"ocr_verified":"ocr_corrected";
                         if(!db.setWeight(tracking,actual,rawGrams,source))
                             throw new IllegalStateException("Tracking not found");
+                        db.confirmScaleTrial(trialId,actual,rawGrams);
                         output.setText("บันทึกแล้ว "+String.format(Locale.US,"%.3f kg",actual/1000.0)+
                             ("ocr_corrected".equals(source)?" • แก้ค่า OCR":" • OCR ตรงตามจอ"));
                         confirmation.dismiss();

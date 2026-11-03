@@ -7,13 +7,16 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 public class ParcelDb extends SQLiteOpenHelper {
-    public ParcelDb(Context context) { super(context, "parcelguard.db", null, 4); }
+    public ParcelDb(Context context) { super(context, "parcelguard.db", null, 5); }
 
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE bags(id TEXT PRIMARY KEY, carrier TEXT NOT NULL, closed INTEGER DEFAULT 0, created_at INTEGER, expected_count INTEGER DEFAULT 0, video_path TEXT DEFAULT '', video_started INTEGER DEFAULT 0)");
         db.execSQL("CREATE TABLE parcels(tracking TEXT PRIMARY KEY, bag_id TEXT NOT NULL, photo TEXT NOT NULL, scanned_at INTEGER, deleted_at INTEGER DEFAULT 0, video_offset_ms INTEGER DEFAULT -1, video_file TEXT DEFAULT '', video_status INTEGER DEFAULT 0, weight_g INTEGER DEFAULT NULL, ocr_weight_g INTEGER DEFAULT NULL, weight_source TEXT DEFAULT '', weighed_at INTEGER DEFAULT 0)");
         db.execSQL("CREATE INDEX idx_bag ON parcels(bag_id)");
         db.execSQL("CREATE INDEX idx_scanned ON parcels(scanned_at)");
+        db.execSQL("CREATE TABLE scale_trials(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            +" tracking TEXT NOT NULL, created_at INTEGER NOT NULL, stable INTEGER NOT NULL,"
+            +" ocr_g INTEGER, confirmed_g INTEGER, outcome TEXT NOT NULL)");
     }
 
     @Override public void onUpgrade(SQLiteDatabase db, int oldV, int newV) {
@@ -35,6 +38,12 @@ public class ParcelDb extends SQLiteOpenHelper {
             db.execSQL("ALTER TABLE parcels ADD COLUMN ocr_weight_g INTEGER DEFAULT NULL");
             db.execSQL("ALTER TABLE parcels ADD COLUMN weight_source TEXT DEFAULT ''");
             db.execSQL("ALTER TABLE parcels ADD COLUMN weighed_at INTEGER DEFAULT 0");
+        }
+        if(oldV < 5){
+            db.execSQL("CREATE TABLE IF NOT EXISTS scale_trials("
+                +"id INTEGER PRIMARY KEY AUTOINCREMENT,tracking TEXT NOT NULL,"
+                +"created_at INTEGER NOT NULL, stable INTEGER NOT NULL,ocr_g INTEGER,"
+                +"confirmed_g INTEGER,outcome TEXT NOT NULL)");
         }
     }
 
@@ -144,6 +153,30 @@ public class ParcelDb extends SQLiteOpenHelper {
         }
         return getWritableDatabase().update("parcels",v,
             "tracking=? AND deleted_at=0",new String[]{tracking})>0;
+    }
+    long addScaleTrial(String tracking,boolean stable,int grams){
+        ContentValues v=new ContentValues();
+        v.put("tracking",tracking);
+        v.put("created_at",System.currentTimeMillis());
+        v.put("stable",stable?1:0);
+        if(grams>0)v.put("ocr_g",grams);else v.putNull("ocr_g");
+        v.put("outcome",stable?"not_confirmed":"unreadable");
+        return getWritableDatabase().insert("scale_trials",null,v);
+    }
+    void confirmScaleTrial(long id,int actual,int initial){
+        if(id<0)return;
+        ContentValues v=new ContentValues();
+        v.put("confirmed_g",actual);
+        v.put("outcome",actual==initial?"confirmed":"corrected");
+        getWritableDatabase().update("scale_trials",v,"id=?",new String[]{Long.toString(id)});
+    }
+    Cursor scaleTrialStats(){
+        return getReadableDatabase().rawQuery(
+            "SELECT COUNT(*),"
+            +" SUM(CASE WHEN stable=1 THEN 1 ELSE 0 END),"
+            +" SUM(CASE WHEN outcome='confirmed' THEN 1 ELSE 0 END),"
+            +" SUM(CASE WHEN outcome='corrected' THEN 1 ELSE 0 END)"
+            +" FROM scale_trials",null);
     }
     Cursor weightStats(){
         return getReadableDatabase().rawQuery(
