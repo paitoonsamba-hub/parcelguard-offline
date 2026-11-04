@@ -62,10 +62,28 @@ final class TrackingSelector {
     private static boolean isLexFlashTracking(String s) {
         return s.matches("TH[0-9]{5}AU[A-Z0-9]{5}");
     }
+    /** UPU S10-compatible Thai Post 13-character identifier.
+     *  Example from real LEX/e-Parcel label: WM901922155TH.
+     *  The check digit reduces false accepts when several barcodes share a label.
+     */
+    private static boolean looksLikeThaiPostS10(String s) {
+        return s.matches("[A-Z]{2}[0-9]{9}TH");
+    }
+    private static boolean isThaiPostS10(String s) {
+        if(!looksLikeThaiPostS10(s))return false;
+        int[] weights={8,6,4,2,3,5,9,7};
+        int sum=0;
+        for(int i=0;i<weights.length;i++)sum+=(s.charAt(i+2)-'0')*weights[i];
+        int check=11-(sum%11);
+        if(check==10)check=0;
+        else if(check==11)check=5;
+        return check==s.charAt(10)-'0';
+    }
     private static boolean lexFlashBag(String carrier) {
         if (carrier == null) return false;
         String c=carrier.trim().replace(" ", "").toUpperCase(Locale.ROOT);
-        return "LEX".equals(c) || "FLASH".equals(c) || "LEX+FLASH".equals(c);
+        return "LEX".equals(c) || "FLASH".equals(c) || "LEX+FLASH".equals(c)
+                || "LEX-ALL".equals(c);
     }
 
     private static boolean matchesSelectedCarrier(String detected,String selected){
@@ -80,7 +98,7 @@ final class TrackingSelector {
     static boolean fastVerifiedLexFlash(String code,String selectedCarrier) {
         String s=normalize(code);
         return lexFlashBag(selectedCarrier)
-                && (isLexFlashTracking(s) || isKexVerified(s)
+                && (isLexFlashTracking(s) || isThaiPostS10(s) || isKexVerified(s)
                     || (isLex(s) && s.length()==15)
                     || (isFlashSpecific(s) && s.length()==15));
     }
@@ -103,6 +121,10 @@ final class TrackingSelector {
         // This family can travel in LEX/Flash bags, but should not silently
         // pass as SPX, J&T or Other solely because it starts with TH.
         if (isLexFlashTracking(s)) return lexFlashBag(current) ? 100 : 0;
+        // Thai Post e-Parcel / S10 identifiers are accepted only in LEX-family bags.
+        // Do not auto-accept malformed check digits; they must be reviewed.
+        if (looksLikeThaiPostS10(s)) return lexFlashBag(current)
+                ? (isThaiPostS10(s) ? 100 : 40) : 0;
         String known = knownCarrier(s);
         if (!known.isEmpty()) {
             if (!matchesSelectedCarrier(known,current)) return 0;
@@ -114,7 +136,8 @@ final class TrackingSelector {
         switch (current.replace(" ", "").toUpperCase(Locale.ROOT)) {
             case "SPX": return isThShared(s) ? 80 : 40;
             case "LEX":
-            case "LEX+FLASH": return 40; // Unknown LEX/Flash prefix: ask, do not guess.
+            case "LEX+FLASH":
+            case "LEX-ALL": return 40; // Unknown LEX partner prefix: review.
             case "J&T": return isNumericTracking(s) ? 85 : (isThShared(s) ? 75 : 40);
             case "FLASH": return 40; // Only verified TH...AU... is auto; other TH codes need review.
             default: return 40;
@@ -131,7 +154,7 @@ final class TrackingSelector {
         if (rawText == null || rawText.isEmpty()) return Collections.emptyList();
         java.util.Set<String> found = new java.util.LinkedHashSet<>();
         java.util.regex.Pattern label = java.util.regex.Pattern.compile(
-                "(?<![A-Z0-9])(?:TH[0-9]{5}AU[A-Z0-9]{5}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|FLE[A-Z0-9]{12}|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
+                "(?<![A-Z0-9])(?:TH[0-9]{5}AU[A-Z0-9]{5}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|FLE[A-Z0-9]{12}|[A-Z]{2}[0-9]{9}TH|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
         for (String line : rawText.toUpperCase(Locale.ROOT).split("\\r?\\n")) {
             String compact = line.replaceAll("\\s+", "");
             java.util.regex.Matcher m = label.matcher(compact);
@@ -157,6 +180,14 @@ final class TrackingSelector {
             if (isLexFlashTracking(s)) {
                 if (lexFlashBag(carrier)) scores.put(s, 100);
                 else if (!mismatched.contains("LEX/Flash")) mismatched.add("LEX/Flash");
+                continue;
+            }
+            if (looksLikeThaiPostS10(s)) {
+                if(lexFlashBag(carrier)){
+                    scores.put(s, isThaiPostS10(s)?100:40);
+                } else if (!mismatched.contains("LEX/Thailand Post")) {
+                    mismatched.add("LEX/Thailand Post");
+                }
                 continue;
             }
             String known=knownCarrier(s);

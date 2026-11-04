@@ -285,10 +285,10 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout bagInfo=new LinearLayout(this);bagInfo.setOrientation(LinearLayout.VERTICAL);
         bagLabel=prominent("",14,WHITE);bagLabel.setSingleLine(true);bagLabel.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
         bagInfo.addView(bagLabel);
-        TextView service=text("ขนส่งสำหรับถุงใหม่",12);service.setTextColor(MUTED);bagInfo.addView(service);
+        TextView service=text("ขนส่งสำหรับถุงใหม่ • LEX-All = LEX / Flash / ไปรษณีย์ไทย",12);service.setTextColor(MUTED);bagInfo.addView(service);
         bagRow.addView(bagInfo,new LinearLayout.LayoutParams(0,-2,1));
         Spinner carrierSelector=new Spinner(this);
-        String[] options={"SPX","J&T","Flash","LEX","LEX+Flash","Other"};
+        String[] options={"SPX","J&T","Flash","LEX","LEX+Flash","LEX-All","Other"};
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,options){
             @Override public View getView(int position,View convert,android.view.ViewGroup parent){
                 TextView v=text(getItem(position),15);v.setTextColor(ORANGE);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);

@@ -89,6 +89,33 @@ public final class TrackingSelectorSmokeTest {
                 .contains("FLE123456789012"))
             throw new AssertionError("Flash OCR in mixed bag failed");
         tests++;
+        // Real LEX / Thai Post e-Parcel: WM + 9 digits + TH (UPU S10 check digit).
+        // The same printed label also contains a sorting barcode and an order ID;
+        // neither must be recorded as the parcel Tracking.
+        for(String carrier:new String[]{"LEX","Flash","LEX+Flash","LEX-All"}){
+            expectAuto(carrier,"WM901922155TH",
+                "T-TB2-01","WM901922155TH","1135081700726632");
+            if(!TrackingSelector.fastVerifiedLexFlash("WM901922155TH",carrier))
+                throw new AssertionError("Postal Tracking should be single-hit verified");
+            tests++;
+            expectReview(carrier,"WM901922156TH"); // wrong S10 check digit
+            expectReview(carrier,"T-TB2-01","1135081700726632");
+        }
+        expectReview("SPX","WM901922155TH");
+        expectReview("J&T","WM901922155TH");
+        expectAuto("LEX-All","TH39139AU6229B","TH39139AU6229B");
+        expectAuto("LEX-All","LEXPU0720309511","LEXPU0720309511");
+        expectAuto("LEX-All","KEXLM1006967960","KEXLM1006967960");
+        expectAuto("LEX-All","FLE123456789012","FLE123456789012");
+        expectReview("LEX-All","WM901922155TH","TH39139AU6229B"); // two parcels
+        java.util.List<String> postOcr=TrackingSelector.printedTextCandidates(
+            "LEX\\nWM901922155TH\\nT-TB2-01\\n1135081700726632","LEX-All");
+        if(postOcr.size()!=1 || !postOcr.get(0).equals("WM901922155TH"))
+            throw new AssertionError("Thai Post OCR selection failed: "+postOcr);
+        tests++;
+        if(!TrackingSelector.printedTextCandidates("WM901922156TH","LEX-All").isEmpty())
+            throw new AssertionError("Wrong S10 check digit accepted via OCR");
+        tests++;
         System.out.println("TrackingSelector smoke tests passed: " + tests);
     }
 }
