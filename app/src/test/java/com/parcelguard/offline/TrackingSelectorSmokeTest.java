@@ -109,7 +109,7 @@ public final class TrackingSelectorSmokeTest {
         expectAuto("LEX-All","FLE123456789012","FLE123456789012");
         expectReview("LEX-All","WM901922155TH","TH39139AU6229B"); // two parcels
         java.util.List<String> postOcr=TrackingSelector.printedTextCandidates(
-            "LEX\\nWM901922155TH\\nT-TB2-01\\n1135081700726632","LEX-All");
+            "LEX\nWM901922155TH\nT-TB2-01\n1135081700726632","LEX-All");
         if(postOcr.size()!=1 || !postOcr.get(0).equals("WM901922155TH"))
             throw new AssertionError("Thai Post OCR selection failed: "+postOcr);
         tests++;
