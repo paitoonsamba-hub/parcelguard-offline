@@ -1436,8 +1436,10 @@ public class MainActivity extends AppCompatActivity {
                 }
                 final String status="เลือก "+chosen.size()+" ถุง / "+parcels+" Tracking";
                 new AlertDialog.Builder(this).setTitle("พิมพ์รวม • "+status)
-                    .setMessage("แต่ละถุงยังคงมีรหัสและรายการแยกกัน จัดกลุ่มตามชื่อขนส่ง\n"+
-                        "การสั่งพิมพ์ใช้เมนู Android Print เพื่อพิมพ์ A4 หรือเลือก Save as PDF")
+                    // setMessage() hides setItems() in Android AlertDialog:
+                    // a message takes precedence over the list panel.
+                    // Use a visible choice list, then Android Print handles
+                    // printing or Save as PDF in the next screen.
                     .setItems(new String[]{
                         "ใบสรุปรวมทุกถุง (ประหยัดกระดาษ)",
                         "ใบสรุปติดถุงทุกใบ (ถุงละ 1 หน้า)",
