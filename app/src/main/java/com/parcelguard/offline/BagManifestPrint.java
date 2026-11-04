@@ -80,7 +80,7 @@ final class BagManifestPrint {
         }catch(Exception e){return "UNAVAILABLE";}
     }
 
-    private static Snapshot load(ParcelDb db,String id){
+    static Snapshot load(ParcelDb db,String id){
         String carrier=null;boolean closed=false;int expected=0;long createdAt=0;
         try(Cursor c=db.getReadableDatabase().rawQuery(
                 "SELECT carrier,closed,created_at,expected_count FROM bags WHERE id=?",
@@ -224,7 +224,7 @@ final class BagManifestPrint {
         line(c,l,t+135,r,Color.DKGRAY);
     }
 
-    private static void drawTrackingPage(Canvas c,Rect bounds,Snapshot data,int page,int pages){
+    static void drawTrackingPage(Canvas c,Rect bounds,Snapshot data,int page,int pages){
         header(c,bounds,data,"TRACKING MANIFEST");
         float l=bounds.left+6,r=bounds.right-6,t=bounds.top+6;
         float split=(r-l-18)/2f;
@@ -262,7 +262,7 @@ final class BagManifestPrint {
         label(c,r-100,foot+47,"PAGE "+(page+1)+" / "+pages,9,true);
     }
 
-    private static void drawLabel(Canvas c,Rect bounds,Snapshot data){
+    static void drawLabel(Canvas c,Rect bounds,Snapshot data){
         header(c,bounds,data,"BAG SUMMARY / ใบสรุปติดถุง");
         float l=bounds.left+6,r=bounds.right-6,t=bounds.top+6;
         label(c,l,t+185,"TRANSPORT / ขนส่ง",13,true);

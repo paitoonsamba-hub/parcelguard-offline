@@ -251,6 +251,7 @@ public class MainActivity extends AppCompatActivity {
         addButton("ส่งออก ZIP ถุงปัจจุบัน",()->exportZip(bag));
         addButton("ดูสถานะถุงทั้งหมด",this::showBags);
         addButton("▤ พิมพ์ A4 / บันทึก PDF รายการพัสดุ",this::chooseBagToPrint);
+        addButton("▣ รวมหลายถุงแล้วพิมพ์ A4 / PDF",this::chooseBagsForBatchPrint);
         root.addView(text("ทดลองน้ำหนัก: สแกนเสร็จแล้ววางพัสดุบนตาชั่ง • กลับหน้าแพ็ค กด 'ทดลองอ่านน้ำหนักตาชั่ง OCR' • ต้องตรวจเลขกับจอจริงก่อนบันทึก",12));
         root.addView(text("พิมพ์ผ่าน Android Print: เลือกเครื่องพิมพ์ที่เชื่อมต่อ หรือเลือก Save as PDF • ถุง 100 ชิ้นแบ่ง 2 หน้าอัตโนมัติ",12));
         root.addView(text("ข้อมูลอยู่ในมือถือเครื่องนี้เท่านั้น • ควรสำรองหลักฐานทั้งรูปและคลิปออกเป็น ZIP เป็นประจำ",12));
@@ -617,7 +618,8 @@ public class MainActivity extends AppCompatActivity {
                 new AlertDialog.Builder(this).setTitle("ปิดถุงเรียบร้อย")
                     .setMessage(sealedBag+" • "+n+" ชิ้น\nต้องการพิมพ์ใบสรุปติดถุงหรือรายการ Tracking ไหม?")
                     .setNegativeButton("ยังไม่พิมพ์",null)
-                    .setPositiveButton("พิมพ์ / PDF",(dlg,which)->chooseManifestFormat(sealedBag))
+                    .setNeutralButton("รวมหลายถุง",(dlg,which)->chooseBagsForBatchPrint())
+                    .setPositiveButton("พิมพ์ถุงนี้",(dlg,which)->chooseManifestFormat(sealedBag))
                     .show();
             }).show();
     }
@@ -1390,6 +1392,68 @@ public class MainActivity extends AppCompatActivity {
             .setTitle("เลือกถุงสำหรับพิมพ์ A4 / PDF")
             .setItems(labels.toArray(new String[0]),(dialog,which)->chooseManifestFormat(ids.get(which)))
             .setNegativeButton("ยกเลิก",null).show();
+    }
+
+    /** Select multiple sealed bags; physical bag identities never get merged.
+     *  PDF output groups carrier/bag tracking separately and creates one print job.
+     */
+    private void chooseBagsForBatchPrint(){
+        ArrayList<String> ids=new ArrayList<>();
+        ArrayList<String> choices=new ArrayList<>();
+        try(Cursor cursor=db.bagList()){
+            while(cursor.moveToNext()){
+                String id=cursor.getString(0);
+                if(cursor.getInt(2)!=1 || db.count(id)==0)continue;
+                ids.add(id);
+                choices.add(cursor.getString(1)+" • "+db.count(id)+" ชิ้น\n"+id);
+            }
+        }
+        if(ids.isEmpty()){
+            new AlertDialog.Builder(this).setTitle("ยังไม่มีถุงพร้อมรวม")
+                .setMessage("ต้องปิดถุงและมีรายการ Tracking อย่างน้อย 1 ชิ้นก่อน จึงจะรวมหลายถุงแล้วพิมพ์ได้")
+                .setPositiveButton("ตกลง",null).show();
+            return;
+        }
+        boolean[] selected=new boolean[ids.size()];
+        // Multiselect is intentional: selected bags are included in one PDF,
+        // but each bag's carrier/Tracking remains a separate documented group.
+        new AlertDialog.Builder(this)
+            .setTitle("รวมหลายถุงเพื่อพิมพ์")
+            .setMultiChoiceItems(choices.toArray(new String[0]),selected,
+                (dialog,index,checked)->selected[index]=checked)
+            .setNegativeButton("ยกเลิก",null)
+            .setPositiveButton("ถัดไป",(dialog,which)->{
+                ArrayList<String> chosen=new ArrayList<>();
+                int parcels=0;
+                for(int i=0;i<selected.length;i++)if(selected[i]){
+                    chosen.add(ids.get(i));parcels+=db.count(ids.get(i));
+                }
+                if(chosen.size()<2){
+                    new AlertDialog.Builder(this).setTitle("กรุณาเลือกอย่างน้อย 2 ถุง")
+                        .setMessage("สำหรับถุงเดียว ใช้เมนูพิมพ์ A4 / PDF ปกติ")
+                        .setPositiveButton("ตกลง",null).show();
+                    return;
+                }
+                final String status="เลือก "+chosen.size()+" ถุง / "+parcels+" Tracking";
+                new AlertDialog.Builder(this).setTitle("พิมพ์รวม • "+status)
+                    .setMessage("แต่ละถุงยังคงมีรหัสและรายการแยกกัน จัดกลุ่มตามชื่อขนส่ง\n"+
+                        "การสั่งพิมพ์ใช้เมนู Android Print เพื่อพิมพ์ A4 หรือเลือก Save as PDF")
+                    .setItems(new String[]{
+                        "ใบสรุปรวมทุกถุง (ประหยัดกระดาษ)",
+                        "ใบสรุปติดถุงทุกใบ (ถุงละ 1 หน้า)",
+                        "สรุปรวม + Tracking ทุกถุง (50 เลข/หน้า/ถุง)"
+                    },(d,index)->{
+                        try{
+                            if(!BatchManifestPrint.print(this,db,chosen,
+                                    BatchManifestPlan.Mode.values()[index]))
+                                message("ไม่พบข้อมูลถุงหรือบริการพิมพ์ Android");
+                        }catch(Exception e){
+                            new AlertDialog.Builder(this).setTitle("ไม่สามารถพิมพ์รวมได้")
+                                .setMessage(e.getMessage()).setPositiveButton("ตกลง",null).show();
+                        }
+                    })
+                    .setNegativeButton("ยกเลิก",null).show();
+            }).show();
     }
 
     private void chooseManifestFormat(String bagId) {
