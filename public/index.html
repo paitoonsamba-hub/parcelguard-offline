@@ -13,6 +13,7 @@
   <title>ParcelGuard — แพ็คแล้ว มีหลักฐาน | ระบบหลักฐานพัสดุสำหรับร้านค้าออนไลน์</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./hero-v2.css">
   <script src="./app.js" defer></script>
 </head>
 <body>
@@ -33,6 +34,7 @@
     <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7V5Z"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="12" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></symbol>
     <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l2 13H3L5 8Zm4 0V6a3 3 0 0 1 6 0v2"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M7 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4M8 15h8m-7 3h6"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h5M8 13h8m-8 4h8"/></symbol>
   </svg>
 
@@ -55,15 +57,15 @@
   </header>
 
   <main id="main">
-    <section class="hero" aria-labelledby="heroTitle">
+    <section class="hero hero-v2" aria-labelledby="heroTitle">
       <div class="hero-grid" aria-hidden="true"></div>
       <div class="hero-glow hero-glow-one" aria-hidden="true"></div>
       <div class="hero-glow hero-glow-two" aria-hidden="true"></div>
       <div class="container hero-layout">
         <div class="hero-copy">
           <div class="eyebrow"><span class="live-dot"></span> ระบบเก็บหลักฐานพัสดุสำหรับร้านค้าออนไลน์ <span class="eyebrow-label">PRE-LAUNCH</span></div>
-          <h1 id="heroTitle">แพ็คพัสดุแล้ว<br><span>มีหลักฐานไว้หรือยัง?</span></h1>
-          <p class="hero-lead">ขนส่งแจ้งว่าพัสดุไม่เข้าระบบ แต่ร้านแพ็คไปแล้ว? ให้ <strong>ParcelGuard</strong> ช่วยบันทึก Tracking พร้อมภาพและวิดีโอ แยกตามถุงพัสดุ และพิมพ์รายการ A4/PDF ได้จากมือถือ</p>
+          <h1 id="heroTitle">จัดการพัสดุลงถุง<br>อย่างมั่นใจ<br><span>มีหลักฐานทุกชิ้น</span></h1>
+          <p class="hero-lead">แพ็คส่งแล้ว แต่ขนส่งแจ้งว่าไม่พบพัสดุ? <strong>ParcelGuard</strong> ช่วยบันทึก Tracking รูปและวิดีโอขณะเตรียมส่ง จัดรายการแยกตามถุง ค้นย้อนหลัง และออกใบ A4/PDF ให้ผู้มารับตรวจนับได้</p>
           <div class="hero-actions">
             <button class="btn btn-primary btn-large" type="button" data-trial>ทดลองใช้ฟรี 7 วัน <svg class="icon"><use href="#i-arrow"/></svg></button>
             <a class="btn btn-secondary btn-large" href="#demo"><svg class="icon"><use href="#i-play"/></svg> ดูตัวอย่างการทำงาน</a>
@@ -75,9 +77,9 @@
             <span><svg class="icon"><use href="#i-check"/></svg> มีเวอร์ชัน Windows</span>
           </div>
         </div>
-        <div class="hero-visual" aria-label="ภาพจำลองหน้าตาแอป ParcelGuard">
-          <div class="visual-orbit visual-orbit-a"></div><div class="visual-orbit visual-orbit-b"></div>
-          <div class="floating-chip chip-top"><span class="small-check">✓</span><div><b>Tracking บันทึกแล้ว</b><small>ภาพ + MP4 พร้อมตรวจสอบ</small></div></div>
+        <div class="hero-visual" aria-label="ภาพจำลองระบบ ParcelGuard และฟีเจอร์ที่ช่วยร้านค้า">
+          <div class="visual-orbit visual-orbit-a" aria-hidden="true"></div>
+          <div class="visual-orbit visual-orbit-b" aria-hidden="true"></div>
           <div class="phone-frame">
             <div class="phone-island"></div>
             <div class="phone-screen">
@@ -98,8 +100,44 @@
               <div class="app-bottom"><div><small>พัสดุในถุง</small><b>08 <span>/ 35</span></b></div><div class="progress-line"><span></span></div></div>
             </div>
           </div>
-          <div class="floating-chip chip-bottom"><span class="chip-icon"><svg class="icon"><use href="#i-printer"/></svg></span><div><b>A4 / PDF</b><small>รวมรายการตามถุงได้</small></div></div>
-          <div class="mock-caption">ภาพหน้าจอจำลองเพื่ออธิบายแนวคิด • ไม่ใช่ภาพจากเครื่องลูกค้า</div>
+
+          <article class="solution-card sol-carriers" aria-label="สแกนพัสดุจากหลายขนส่ง">
+            <div class="sol-head"><span class="sol-icon"><svg class="icon"><use href="#i-scan"/></svg></span><strong>สแกนได้หลายขนส่ง</strong></div>
+            <p>เลือกถุงให้ตรงผู้ให้บริการ</p>
+            <div class="carrier-tags"><span>SPX</span><span>LEX-All</span><span>J&amp;T</span><span>Flash</span><span>ไปรษณีย์ไทย</span></div>
+          </article>
+          <article class="solution-card sol-bags" aria-label="แยกพัสดุตามถุง ลดการปะปน">
+            <div class="sol-head"><span class="sol-icon"><svg class="icon"><use href="#i-bag"/></svg></span><strong>แยกถุง ลดพัสดุปน</strong></div>
+            <p>เช็ก Tracking และจำนวนก่อนปิดถุง</p>
+            <div class="mini-bags" aria-hidden="true"><span><b>BAG-01</b><small>35 ชิ้น</small></span><span><b>BAG-02</b><small>28 ชิ้น</small></span><span><b>BAG-03</b><small>17 ชิ้น</small></span></div>
+          </article>
+          <article class="solution-card sol-manifest" aria-label="สรุปรายการ A4 PDF พร้อมให้ผู้มารับเซ็นบนกระดาษ">
+            <div class="sol-head"><span class="sol-icon"><svg class="icon"><use href="#i-printer"/></svg></span><strong>พิมพ์สรุป A4 / PDF</strong></div>
+            <p>รวม Tracking รายถุง ให้ผู้มารับตรวจนับและเซ็นบนกระดาษ</p>
+            <div class="mini-manifest" aria-hidden="true"><span>PARCEL MANIFEST</span><b>BAG-DEMO-001 <i>35 ชิ้น</i></b><em>ลงชื่อผู้รับ __________________</em></div>
+          </article>
+          <article class="solution-card sol-evidence" aria-label="เก็บหลักฐานพัสดุเป็น Tracking จำนวน รูป และวิดีโอ">
+            <div class="sol-head"><span class="sol-icon"><svg class="icon"><use href="#i-video"/></svg></span><strong>หลักฐานครบในที่เดียว</strong></div>
+            <p>Tracking • จำนวน • รูป • MP4</p>
+            <div class="mini-evidence"><span class="evidence-check">✓</span><b>TH12345AU6789Z</b><small>ภาพ 1 รูป · วิดีโอ 4 วิ</small></div>
+          </article>
+          <article class="solution-card sol-weight" aria-label="ภาพวิดีโออาจช่วยตรวจน้ำหนักเมื่อมองเห็นตัวเลขบนตาชั่งชัด">
+            <div class="sol-head"><span class="sol-icon"><svg class="icon"><use href="#i-scale"/></svg></span><strong>วิดีโอช่วยตรวจน้ำหนัก</strong></div>
+            <p>วางบนตาชั่งให้จออยู่ในภาพ ใช้ดูย้อนหลังเมื่ออ่านค่าได้ชัด</p>
+            <div class="mini-scale" aria-hidden="true"><span><svg class="icon"><use href="#i-package"/></svg></span><strong>1.240 <small>kg</small></strong><em>ภาพจำลอง</em></div>
+          </article>
+          <article class="solution-card sol-case" aria-label="ค้นหา Tracking ย้อนหลังเพื่อเตรียมหลักฐานตรวจสอบกับขนส่ง">
+            <div class="sol-head"><span class="sol-icon"><svg class="icon"><use href="#i-search"/></svg></span><strong>ค้นหลักฐานย้อนหลัง</strong></div>
+            <p>หาว่าพัสดุอยู่ถุงไหน แล้วนำข้อมูลสอบถามผู้มารับหรือขนส่ง</p>
+            <div class="mini-search"><svg class="icon"><use href="#i-search"/></svg><span>TH12345AU6789Z</span><b>✓</b></div>
+          </article>
+          <div class="mock-caption">ตัวอย่างหน้าจอและข้อมูลจำลอง • หลักฐานฝั่งร้าน ไม่ใช่การยืนยันว่าขนส่งสแกนรับแล้ว</div>
+        </div>
+        <div class="hero-benefit-strip" aria-label="ประโยชน์หลัก">
+          <span><svg class="icon"><use href="#i-bag"/></svg> แยกรายการตามถุง</span>
+          <span><svg class="icon"><use href="#i-check"/></svg> นับจำนวนอัตโนมัติ</span>
+          <span><svg class="icon"><use href="#i-search"/></svg> ตรวจสอบย้อนหลัง</span>
+          <span><svg class="icon"><use href="#i-monitor"/></svg> Android + PC</span>
         </div>
       </div>
     </section>
@@ -122,9 +160,9 @@
           <p>ยิ่งร้านมีพัสดุจำนวนมาก การย้อนหา 1 กล่องจากหลายสิบถุงอาจเสียเวลามากกว่าที่คิด</p>
         </div>
         <div class="problem-grid">
-          <article class="problem-card"><span class="problem-no">01</span><div class="problem-icon"><svg class="icon"><use href="#i-bag"/></svg></div><h3>แพ็คลงถุงแล้วจำไม่ได้</h3><p>Tracking ใดถูกแพ็คจริง และถูกใส่ลงถุงใบไหน ต้องย้อนหาจากความทรงจำ</p></article>
-          <article class="problem-card"><span class="problem-no">02</span><div class="problem-icon"><svg class="icon"><use href="#i-search"/></svg></div><h3>ขนส่งแจ้งว่าไม่พบพัสดุ</h3><p>เมื่อมีรายการไม่ถูกสแกนเข้าคลัง ร้านต้องใช้เวลารวบรวมข้อมูลตรวจสอบ</p></article>
-          <article class="problem-card"><span class="problem-no">03</span><div class="problem-icon"><svg class="icon"><use href="#i-file"/></svg></div><h3>ไม่มีใบรายการประจำถุง</h3><p>จำนวนพัสดุในแต่ละถุงตรวจนับยาก และไม่มีเอกสาร A4 สำหรับเก็บอ้างอิง</p></article>
+          <article class="problem-card"><span class="problem-no">01</span><div class="problem-icon"><svg class="icon"><use href="#i-bag"/></svg></div><h3>แพ็คลงถุงแล้วจำไม่ได้</h3><p>Tracking ใดถูกแพ็คจริง และถูกใส่ลงถุงใบไหน ต้องย้อนหาจากความทรงจำ</p><div class="problem-resolve"><svg class="icon"><use href="#i-check"/></svg><span>ParcelGuard แยก Bag ID และนับชิ้นตามถุง</span></div></article>
+          <article class="problem-card"><span class="problem-no">02</span><div class="problem-icon"><svg class="icon"><use href="#i-search"/></svg></div><h3>ขนส่งแจ้งว่าไม่พบพัสดุ</h3><p>เมื่อมีรายการไม่ถูกสแกนเข้าคลัง ร้านต้องใช้เวลารวบรวมข้อมูลตรวจสอบ</p><div class="problem-resolve"><svg class="icon"><use href="#i-check"/></svg><span>ค้น Tracking เปิดภาพและวิดีโอเพื่อสอบถามขนส่ง</span></div></article>
+          <article class="problem-card"><span class="problem-no">03</span><div class="problem-icon"><svg class="icon"><use href="#i-file"/></svg></div><h3>ไม่มีใบรายการประจำถุง</h3><p>จำนวนพัสดุในแต่ละถุงตรวจนับยาก และไม่มีเอกสาร A4 สำหรับเก็บอ้างอิง</p><div class="problem-resolve"><svg class="icon"><use href="#i-check"/></svg><span>พิมพ์ A4/PDF ให้ผู้มารับตรวจนับและเซ็นได้</span></div></article>
         </div>
       </div>
     </section>
@@ -138,9 +176,9 @@
             <p class="section-description">ติดตั้งมือถือเหนือโต๊ะแพ็ค ไม่ต้องเปลี่ยนระบบออเดอร์เดิมของร้าน</p>
             <div class="steps">
               <div class="step"><div class="step-index">01</div><div><h3>สแกน Tracking</h3><p>วางพัสดุในกรอบกล้อง ระบบอ่านเลขที่รู้จักและตรวจรูปแบบก่อนบันทึก</p></div></div>
-              <div class="step"><div class="step-index">02</div><div><h3>บันทึกวิดีโอและภาพ</h3><p>เก็บคลิปสั้นคู่กับ Tracking ตามด้วยภาพนิ่งหลังคลิปจบ</p></div></div>
+              <div class="step"><div class="step-index">02</div><div><h3>บันทึกวิดีโอและภาพ</h3><p>เก็บคลิปสั้นคู่กับ Tracking ตามด้วยภาพนิ่งหลังคลิปจบ หากเห็นจอตาชั่งชัด สามารถย้อนดูน้ำหนักในวิดีโอประกอบได้</p></div></div>
               <div class="step"><div class="step-index">03</div><div><h3>จัดเข้าถุงขนส่ง</h3><p>มี Bag ID จำนวนชิ้น และประวัติแยกตามถุง SPX / LEX-All / ขนส่งอื่น</p></div></div>
-              <div class="step"><div class="step-index">04</div><div><h3>พิมพ์ใบ A4 / PDF</h3><p>พิมพ์หนึ่งถุงหรือเลือกหลายถุงแล้วออกเอกสารชุดเดียวจาก Android</p></div></div>
+              <div class="step"><div class="step-index">04</div><div><h3>พิมพ์ใบ A4 / PDF</h3><p>พิมพ์หนึ่งหรือหลายถุงเป็นเอกสารเดียวจาก Android และให้พนักงานที่มารับเซ็นรับทราบบนกระดาษได้</p></div></div>
             </div>
           </div>
           <div class="manifest-panel" aria-label="ตัวอย่างใบรายการจากระบบ">
@@ -190,7 +228,7 @@
           <p>ฟังก์ชันที่พัฒนาจากปัญหาในร้านออนไลน์จริง และกำลังทดสอบกับอุปกรณ์ก่อนเปิดขาย</p>
         </div>
         <div class="feature-grid">
-          <article class="feature-card feature-emphasis"><span class="feature-icon"><svg class="icon"><use href="#i-scan"/></svg></span><h3>Smart Tracking Scan</h3><p>รองรับหลายรูปแบบ Tracking ที่ผ่านการทดสอบ และให้ตรวจเลขที่ไม่รู้จักก่อนบันทึก ลดโอกาสสแกนรหัสคัดแยกผิดตัว</p><div class="feature-tags"><span>SPX</span><span>LEX-All</span><span>Flash</span></div></article>
+          <article class="feature-card feature-emphasis"><span class="feature-icon"><svg class="icon"><use href="#i-scan"/></svg></span><h3>Smart Tracking Scan</h3><p>รองรับ Tracking หลายขนส่งที่ผ่านการทดสอบ กรองรหัสคัดแยกและให้ตรวจเลขที่ไม่รู้จัก ลดความผิดพลาดเมื่อแยกถุง</p><div class="feature-tags"><span>SPX</span><span>LEX-All</span><span>Flash</span></div></article>
           <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-video"/></svg></span><h3>ภาพ + วิดีโอรายชิ้น</h3><p>จับคู่ไฟล์หลักฐานกับ Tracking เพื่อย้อนดูว่าเกิดอะไรขึ้นระหว่างการแพ็คได้ง่ายขึ้น</p></article>
           <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-bag"/></svg></span><h3>รายการแยกตามถุง</h3><p>สร้าง Bag ID เปิด–ปิดถุง ตรวจนับจำนวน และรวมหลายถุงเพื่อพิมพ์ได้</p></article>
           <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-printer"/></svg></span><h3>พิมพ์ A4 / บันทึก PDF</h3><p>ออกใบสรุปติดถุงและรายการ Tracking แบบละเอียด พร้อมแบ่งหน้าอัตโนมัติสำหรับถุงขนาดใหญ่</p></article>
@@ -246,7 +284,8 @@
           <details><summary>ทดลองฟรี 7 วันได้ทันทีไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ยังไม่ได้ครับ ขณะนี้ทีมกำลังเตรียมระบบสมัครทดลองและ License ปุ่มบนเว็บจะแสดงสถานะก่อนเปิดบริการ โดยยังไม่มีการเก็บเงินหรือส่ง APK ให้ลูกค้าทั่วไป</p></details>
           <details><summary>ต้องใช้เครื่องสแกนบาร์โค้ดเพิ่มไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>สำหรับ Android สามารถใช้กล้องมือถือที่รองรับได้ แต่ความเร็วและความแม่นยำขึ้นกับคุณภาพกล้อง แสง และใบปะหน้า หากเลขบางรูปแบบอ่านไม่ได้ ระบบมีขั้นตอนให้ตรวจยืนยันหรือกรอกเอง</p></details>
           <details><summary>แอปใช้แบบไม่ต่ออินเทอร์เน็ตได้หรือไม่? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>การเก็บหลักฐานบนมือถือออกแบบเป็น Offline-first ส่วนการซิงก์ไปคอมต้องใช้เครือข่ายภายในร้าน และเมื่อเปิดระบบ License อาจต้องเชื่อมต่อเป็นครั้งคราวเพื่อตรวจสิทธิ์</p></details>
-          <details><summary>หลักฐานจาก ParcelGuard ใช้ยื่นเคลมได้แน่นอนไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ไม่สามารถรับประกันได้ เอกสารและไฟล์เป็นหลักฐานการทำงานฝั่งร้าน ไม่ใช่หลักฐานยืนยันว่าขนส่งรับพัสดุรายชิ้นเข้าคลังแล้ว การพิจารณาขึ้นอยู่กับเงื่อนไขขนส่งและข้อมูลประกอบอื่น</p></details>
+          <details><summary>หลักฐานจาก ParcelGuard ใช้ยื่นเคลมได้แน่นอนไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ไม่สามารถรับประกันได้ ภาพ วิดีโอ ใบรายการ และลายเซ็นผู้มารับ (ถ้ามี) เป็นหลักฐานประกอบการตรวจสอบฝั่งร้าน ไม่ใช่หลักฐานยืนยันว่าขนส่งสแกนรับพัสดุรายชิ้นเข้าคลังแล้ว การพิจารณาขึ้นอยู่กับเงื่อนไขขนส่งและข้อมูลอื่น</p></details>
+          <details><summary>ถ่ายวิดีโอตอนชั่ง ช่วยยืนยันน้ำหนักได้แค่ไหน? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>วิดีโอช่วยให้ย้อนดูตัวเลขบนจอตาชั่งได้ หากกล้องจับภาพชัด ตัวเลขนิ่ง และมี Tracking ของกล่องเชื่อมโยงกัน ส่วนการอ่านน้ำหนักอัตโนมัติด้วย OCR ยังอยู่ระหว่างทดลอง ไม่ควรใช้แทนการตรวจสอบโดยคน</p></details>
           <details><summary>ถุง SPX มี 100 ชิ้น จะพิมพ์ครบไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ระบบจัดหน้า Tracking 50 รายการต่อหน้า A4 จึงแบ่งถุง 100 ชิ้นออกเป็นสองหน้ารายละเอียดได้ และรองรับการเลือกหลายถุงออกเป็นงานพิมพ์ชุดเดียว</p></details>
           <details><summary>ข้อมูลลูกค้าจะถูกนำไปขายหรือขึ้น Cloud หรือไม่? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>รุ่นที่กำลังทดสอบเก็บหลักฐานในเครื่องเป็นหลัก ไม่มีการนำรูปพัสดุขึ้นเซิร์ฟเวอร์ขาย License โดยอัตโนมัติ ก่อนเปิดขายจะเผยแพร่นโยบายความเป็นส่วนตัวและเงื่อนไขข้อมูลอย่างเป็นทางการอีกครั้ง</p></details>
         </div>

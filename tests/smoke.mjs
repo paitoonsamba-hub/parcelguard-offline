@@ -16,6 +16,23 @@ for (const anchor of ["problem","features","how-it-works","pricing","faq","demo"
   assert.ok(html.includes('id="'+anchor+'"'),"Missing section: "+anchor);
 }
 assert.ok(!html.includes("14"+" วัน"),"Old trial duration remains");
+// Hero v2 is real responsive markup, not just a static marketing screenshot.
+assert.match(html,/<link rel="stylesheet" href="\.\/hero-v2\.css">/);
+assert.equal((html.match(/class="solution-card sol-/g)||[]).length,6,
+  "Hero must show six connected solution cards");
+for (const term of ["สแกนได้หลายขนส่ง","แยกถุง ลดพัสดุปน",
+  "พิมพ์สรุป A4 / PDF","หลักฐานครบในที่เดียว",
+  "วิดีโอช่วยตรวจน้ำหนัก","ค้นหลักฐานย้อนหลัง",
+  "ลงชื่อผู้รับ","ตัวอย่างหน้าจอและข้อมูลจำลอง"]) {
+  assert.ok(html.includes(term),"Missing solution messaging: "+term);
+}
+assert.ok(html.includes("7 วัน") && !html.includes("14 วัน"),
+  "Trial offer must remain 7 days");
+assert.ok(existsSync(new URL("../public/hero-v2.css",import.meta.url)),
+  "Missing hero responsive styles");
+const heroCss=read("../public/hero-v2.css");
+assert.match(heroCss,/@media\(max-width:780px\)/);
+assert.match(heroCss,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 assert.match(js,/DEMO_VIDEO_URL = ""/);
 assert.match(js,/\.showModal\(\)/);
 assert.ok(!html.includes('action="https://'),"Unexpected live registration form");

@@ -31,6 +31,20 @@ If the Cloudflare build form prompts to install dependencies, there are none; no
 
 Official docs: https://developers.cloudflare.com/pages/framework-guides/deploy-anything/
 
+## Hero v2 feature map
+
+The hero is deliberately built from editable HTML/CSS (`public/hero-v2.css`):
+a center phone mockup + six solution cards covering carrier selection,
+per-bag tracking, video/photo evidence, optional scale visibility, case search,
+and printable A4/PDF manifests for physical handover. Small screens place
+cards *below* the phone in a responsive grid. All demo codes and statistics
+are illustrative, not real customer records.
+
+**Claim safeguards:** The video may help inspect weight only when the
+physical scale is visible and readable; the scale OCR is an experiment.
+Printing an A4 list can support a handwritten signature on paper but does
+not itself prove carrier acceptance or hub scanning.
+
 ## Enable real demo later
 
 1. Record a 30–60 second demo and blur all customer names, addresses, phone numbers and real order details.
