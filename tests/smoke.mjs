@@ -9,12 +9,13 @@ const robots = read("../public/robots.txt");
 assert.match(html, /<html lang="th">/);
 assert.match(html, /<meta name="viewport"/);
 assert.match(html, /<meta name="robots" content="noindex,nofollow">/);
-for (const name of ["SPX","LEX-All","490","990","14 วัน","demoVideo","trialDialog"]) {
+for (const name of ["SPX","LEX-All","490","990","7 วัน","demoVideo","trialDialog"]) {
   assert.ok(html.includes(name), "Missing required site content: "+name);
 }
 for (const anchor of ["problem","features","how-it-works","pricing","faq","demo"]) {
   assert.ok(html.includes('id="'+anchor+'"'),"Missing section: "+anchor);
 }
+assert.ok(!html.includes("14"+" วัน"),"Old trial duration remains");
 assert.match(js,/DEMO_VIDEO_URL = ""/);
 assert.match(js,/\.showModal\(\)/);
 assert.ok(!html.includes('action="https://'),"Unexpected live registration form");

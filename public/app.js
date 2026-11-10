@@ -47,7 +47,7 @@
       if (trialDialog && typeof trialDialog.showModal === "function") {
         trialDialog.showModal();
       } else {
-        window.alert("ParcelGuard กำลังเตรียมระบบทดลองใช้ฟรี 14 วัน ยังไม่เปิดรับสมัครหรือชำระเงินจริง");
+        window.alert("ParcelGuard กำลังเตรียมระบบทดลองใช้ฟรี 7 วัน ยังไม่เปิดรับสมัครหรือชำระเงินจริง");
       }
     });
   });

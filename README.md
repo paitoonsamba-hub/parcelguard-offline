@@ -40,7 +40,7 @@ Official docs: https://developers.cloudflare.com/pages/framework-guides/deploy-a
 
 ## Important commercial launch checklist
 
-- Complete and test trial-14-day backend, account recovery and server-signed offline-capable licenses.
+- Complete and test trial-7-day backend, account recovery and server-signed offline-capable licenses.
 - Complete independent signed Android release + Windows installer, backup/recovery and support process.
 - Add real privacy notice, terms and business/contact information before taking signups/payments.
 - Add payment provider server-side integration and verified webhook/slip reconciliation.
