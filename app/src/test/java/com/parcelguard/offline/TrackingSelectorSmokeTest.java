@@ -116,6 +116,38 @@ public final class TrackingSelectorSmokeTest {
         if(!TrackingSelector.printedTextCandidates("WM901922156TH","LEX-All").isEmpty())
             throw new AssertionError("Wrong S10 check digit accepted via OCR");
         tests++;
+        // Real LEX label with a newer TH-14 family (no AU after prefix).
+        // Screenshot proved the barcode decoder saw the exact number in SPX,
+        // but LEX-All used to leave it in manual-review confidence only.
+        String lexFlashNew="TH46069B4ZUE0C";
+        if(lexFlashNew.length()!=14)throw new AssertionError("Incorrect sample length");
+        for(String bagType:new String[]{"LEX","Flash","LEX+Flash","LEX-All"}){
+            expectAuto(bagType,lexFlashNew,"T-FC2-01",lexFlashNew,"19NE-15076-10");
+            if(!TrackingSelector.fastVerifiedLexFlash(lexFlashNew,bagType))
+                throw new AssertionError("New LEX-Flash family requires re-scan: "+bagType);
+            tests++;
+            java.util.List<String> recovered=TrackingSelector.printedTextCandidates(
+                "TH46069B4ZUE0C\\nT-FC2-01",bagType);
+            if(!recovered.contains(lexFlashNew))
+                throw new AssertionError("OCR cannot recover the new family in "+bagType);
+            tests++;
+        }
+        // Retain already-working LEX Thai Post, LEX-AU, KEX, FLE, and SPX.
+        expectAuto("LEX-All","WM901922155TH","WM901922155TH");
+        expectAuto("LEX-All","TH39139AU6229B","TH39139AU6229B");
+        expectAuto("LEX-All","KEXLM1006967960","KEXLM1006967960");
+        expectAuto("LEX-All","LEXPU0720309511","LEXPU0720309511");
+        expectAuto("LEX-All","FLE123456789012","FLE123456789012");
+        expectAuto("SPX","TH263781529981D","TH263781529981D");
+        expectReview("LEX-All","TH263781529981D");
+        expectReview("LEX-All",lexFlashNew,"TH39139AU6229B");
+        expectReview("LEX-All",lexFlashNew,"WM901922155TH");
+        expectReview("LEX-All","TH46069B123456","H-MUK-A1"); // weak TH family
+        expectReview("LEX-All","T-FC2-01","19NE-15076-10");
+        if(TrackingSelector.fastVerifiedLexFlash("TH263781529981D","LEX-All")
+            || TrackingSelector.fastVerifiedLexFlash("T-FC2-01","LEX-All"))
+            throw new AssertionError("Non-LEX barcode accepted in a LEX-All bag");
+        tests++;
         System.out.println("TrackingSelector smoke tests passed: " + tests);
     }
 }

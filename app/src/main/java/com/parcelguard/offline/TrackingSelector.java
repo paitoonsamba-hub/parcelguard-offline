@@ -56,11 +56,20 @@ final class TrackingSelector {
     private static boolean isSpx(String s) {return s.matches("SPX[A-Z0-9]{8,23}");}
     private static boolean isJt(String s) {return s.matches("JT[A-Z0-9]{9,22}");}
     private static boolean isFlashSpecific(String s) {return s.matches("FLE[A-Z0-9]{8,22}");}
-    // LEX labels handed to Flash use a separate tracking family, confirmed by
-    // photos of real labels on 2026-11-02: TH39139AU6229B, TH26079AU6233D,
-    // TH50089AU6RU0E. Do NOT accept arbitrary TH numbers as LEX parcels.
+    // Real LEX-Flash photos (2026-11-02): TH39139AU6229B, TH26079AU6233D,
+    // TH50089AU6RU0E. New LEX photo (2026-11-10): TH46069B4ZUE0C.
+    // The two observed families both use TH + 5 digits + 7 alphanumerics.
+    // Unlike common SPX TH codes, position 8 is a LETTER and the suffix
+    // contains at least two letters. This is a conservative format heuristic,
+    // not independent confirmation of the logistics provider.
     private static boolean isLexFlashTracking(String s) {
-        return s.matches("TH[0-9]{5}AU[A-Z0-9]{5}");
+        if (s.matches("TH[0-9]{5}AU[A-Z0-9]{5}")) return true;
+        if (!s.matches("TH[0-9]{5}[A-Z][A-Z0-9]{6}")) return false;
+        int letters=0;
+        for (int i=7;i<s.length();i++) {
+            if (s.charAt(i)>='A' && s.charAt(i)<='Z')letters++;
+        }
+        return letters>=2;
     }
     /** UPU S10-compatible Thai Post 13-character identifier.
      *  Example from real LEX/e-Parcel label: WM901922155TH.
@@ -154,7 +163,7 @@ final class TrackingSelector {
         if (rawText == null || rawText.isEmpty()) return Collections.emptyList();
         java.util.Set<String> found = new java.util.LinkedHashSet<>();
         java.util.regex.Pattern label = java.util.regex.Pattern.compile(
-                "(?<![A-Z0-9])(?:TH[0-9]{5}AU[A-Z0-9]{5}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|FLE[A-Z0-9]{12}|[A-Z]{2}[0-9]{9}TH|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
+                "(?<![A-Z0-9])(?:TH[0-9]{5}[A-Z][A-Z0-9]{6}|KEXDOLM[0-9]{9}|KEXLM[0-9]{10}|LEX[A-Z0-9]{8,23}|FLE[A-Z0-9]{12}|[A-Z]{2}[0-9]{9}TH|SPX[A-Z0-9]{8,23})(?![A-Z0-9])");
         for (String line : rawText.toUpperCase(Locale.ROOT).split("\\r?\\n")) {
             String compact = line.replaceAll("\\s+", "");
             java.util.regex.Matcher m = label.matcher(compact);

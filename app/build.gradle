@@ -1,6 +1,6 @@
 plugins { id 'com.android.application' }
 android { namespace 'com.parcelguard.offline'; compileSdk 35
- defaultConfig { applicationId 'com.parcelguard.offline'; minSdk 26; targetSdk 35; versionCode 19; versionName '0.4.14-batch-print-dialog-fix' }
+ defaultConfig { applicationId 'com.parcelguard.offline'; minSdk 26; targetSdk 35; versionCode 20; versionName '0.4.15-lexflash-th14-fix' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies {
