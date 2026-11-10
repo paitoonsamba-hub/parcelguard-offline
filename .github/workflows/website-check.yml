@@ -1,0 +1,17 @@
+name: ParcelGuard Website Static Check
+on:
+  push:
+    branches: [parcelguard-website]
+  workflow_dispatch:
+jobs:
+  verify-static-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check HTML/CSS/JS content
+        run: node tests/smoke.mjs
+      - name: JavaScript syntax
+        run: node --check public/app.js

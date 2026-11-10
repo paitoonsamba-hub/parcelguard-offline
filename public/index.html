@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090e16">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="ParcelGuard ช่วยร้านค้าออนไลน์บันทึก Tracking ภาพและวิดีโอขณะเตรียมส่งพัสดุ แยกรายการตามถุง และออกใบ A4/PDF ทดลองฟรี 14 วันเมื่อเปิดบริการ">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="th_TH">
+  <meta property="og:title" content="ParcelGuard — แพ็คแล้ว มีหลักฐาน">
+  <meta property="og:description" content="สแกน Tracking บันทึกภาพและวิดีโอ พร้อมรายงานพัสดุแยกตามถุง บน Android และ Windows">
+  <title>ParcelGuard — แพ็คแล้ว มีหลักฐาน | ระบบหลักฐานพัสดุสำหรับร้านค้าออนไลน์</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+  <svg class="svg-symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Zm-9 5v10l9 5 9-5V7M12 12v10"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4m6 0h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4m-6 0H5a1 1 0 0 1-1-1v-4M5 12h14"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+    <symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6zM18 12h.01"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0m-11 4a5 5 0 0 1 8 0M12 20h.01"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7V5Z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="12" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 8h14l2 13H3L5 8Zm4 0V6a3 3 0 0 1 6 0v2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h5M8 13h8m-8 4h8"/></symbol>
+  </svg>
+
+  <header class="site-header" id="top">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="ParcelGuard หน้าแรก">
+        <span class="brand-symbol" aria-hidden="true"><svg class="icon"><use href="#i-package"/></svg></span>
+        <span>Parcel<span class="brand-accent">Guard</span><small>PACKING EVIDENCE</small></span>
+      </a>
+      <button class="menu-toggle" id="menuToggle" type="button" aria-controls="navLinks" aria-expanded="false" aria-label="เปิดเมนู"><span></span><span></span><span></span></button>
+      <nav class="nav-links" id="navLinks" aria-label="เมนูหลัก">
+        <a href="#problem">ปัญหาที่แก้</a>
+        <a href="#features">ฟีเจอร์</a>
+        <a href="#how-it-works">วิธีใช้งาน</a>
+        <a href="#pricing">ราคา</a>
+        <a href="#faq">คำถามที่พบบ่อย</a>
+        <button class="btn btn-small btn-outline" type="button" data-trial>ทดลองฟรี <svg class="icon"><use href="#i-arrow"/></svg></button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="hero-grid" aria-hidden="true"></div>
+      <div class="hero-glow hero-glow-one" aria-hidden="true"></div>
+      <div class="hero-glow hero-glow-two" aria-hidden="true"></div>
+      <div class="container hero-layout">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="live-dot"></span> ระบบเก็บหลักฐานพัสดุสำหรับร้านค้าออนไลน์ <span class="eyebrow-label">PRE-LAUNCH</span></div>
+          <h1 id="heroTitle">แพ็คพัสดุแล้ว<br><span>มีหลักฐานไว้หรือยัง?</span></h1>
+          <p class="hero-lead">ขนส่งแจ้งว่าพัสดุไม่เข้าระบบ แต่ร้านแพ็คไปแล้ว? ให้ <strong>ParcelGuard</strong> ช่วยบันทึก Tracking พร้อมภาพและวิดีโอ แยกตามถุงพัสดุ และพิมพ์รายการ A4/PDF ได้จากมือถือ</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-large" type="button" data-trial>ทดลองใช้ฟรี 14 วัน <svg class="icon"><use href="#i-arrow"/></svg></button>
+            <a class="btn btn-secondary btn-large" href="#demo"><svg class="icon"><use href="#i-play"/></svg> ดูตัวอย่างการทำงาน</a>
+          </div>
+          <p class="hero-caveat"><svg class="icon"><use href="#i-clock"/></svg> กำลังเตรียมเปิดให้ทดลอง — ยังไม่เปิดรับชำระเงิน</p>
+          <div class="hero-facts" aria-label="จุดเด่น">
+            <span><svg class="icon"><use href="#i-check"/></svg> ใช้มือถือ Android</span>
+            <span><svg class="icon"><use href="#i-check"/></svg> บันทึกในเครื่อง</span>
+            <span><svg class="icon"><use href="#i-check"/></svg> มีเวอร์ชัน Windows</span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="ภาพจำลองหน้าตาแอป ParcelGuard">
+          <div class="visual-orbit visual-orbit-a"></div><div class="visual-orbit visual-orbit-b"></div>
+          <div class="floating-chip chip-top"><span class="small-check">✓</span><div><b>Tracking บันทึกแล้ว</b><small>ภาพ + MP4 พร้อมตรวจสอบ</small></div></div>
+          <div class="phone-frame">
+            <div class="phone-island"></div>
+            <div class="phone-screen">
+              <div class="app-top"><span class="app-logo-mini">PG<span>•</span></span><span class="app-label">LIVE PACKING <i></i></span></div>
+              <div class="app-title">สแกนพัสดุ</div>
+              <div class="bag-row"><div><small>ถุงปัจจุบัน</small><b>BAG-DEMO-001</b></div><span>LEX-All</span></div>
+              <div class="scan-preview">
+                <div class="scan-corners"><i></i><i></i><i></i><i></i></div>
+                <div class="fake-label">
+                  <span>PARCEL LABEL</span>
+                  <div class="barcode-stripes" aria-hidden="true"></div>
+                  <b>TH12345AU6789Z</b>
+                </div>
+                <div class="scan-line"></div>
+                <div class="scan-status"><span></span> กำลังอ่าน Tracking</div>
+              </div>
+              <div class="app-status"><svg class="icon"><use href="#i-video"/></svg><div><b>บันทึกหลักฐานอัตโนมัติ</b><small>วิดีโอ 4 วิ → ถ่ายภาพ</small></div><span class="app-on">ON</span></div>
+              <div class="app-bottom"><div><small>พัสดุในถุง</small><b>08 <span>/ 35</span></b></div><div class="progress-line"><span></span></div></div>
+            </div>
+          </div>
+          <div class="floating-chip chip-bottom"><span class="chip-icon"><svg class="icon"><use href="#i-printer"/></svg></span><div><b>A4 / PDF</b><small>รวมรายการตามถุงได้</small></div></div>
+          <div class="mock-caption">ภาพหน้าจอจำลองเพื่ออธิบายแนวคิด • ไม่ใช่ภาพจากเครื่องลูกค้า</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="trust-band">
+      <div class="container trust-inner">
+        <span class="trust-label">เหมาะกับงานแพ็คสินค้า</span>
+        <span><svg class="icon"><use href="#i-package"/></svg> Shopee</span>
+        <span><svg class="icon"><use href="#i-package"/></svg> Lazada</span>
+        <span><svg class="icon"><use href="#i-package"/></svg> TikTok Shop</span>
+        <span class="trust-notice">ไม่ใช่ผลิตภัณฑ์ในเครือแพลตฟอร์มข้างต้น</span>
+      </div>
+    </div>
+
+    <section id="problem" class="section problem-section">
+      <div class="container">
+        <div class="section-head center">
+          <span class="section-kicker">ปัญหาที่คนแพ็คของเข้าใจดี</span>
+          <h2>ส่งพัสดุออกไปแล้ว<br><em>แต่ตอบไม่ได้ว่าอยู่ถุงไหน?</em></h2>
+          <p>ยิ่งร้านมีพัสดุจำนวนมาก การย้อนหา 1 กล่องจากหลายสิบถุงอาจเสียเวลามากกว่าที่คิด</p>
+        </div>
+        <div class="problem-grid">
+          <article class="problem-card"><span class="problem-no">01</span><div class="problem-icon"><svg class="icon"><use href="#i-bag"/></svg></div><h3>แพ็คลงถุงแล้วจำไม่ได้</h3><p>Tracking ใดถูกแพ็คจริง และถูกใส่ลงถุงใบไหน ต้องย้อนหาจากความทรงจำ</p></article>
+          <article class="problem-card"><span class="problem-no">02</span><div class="problem-icon"><svg class="icon"><use href="#i-search"/></svg></div><h3>ขนส่งแจ้งว่าไม่พบพัสดุ</h3><p>เมื่อมีรายการไม่ถูกสแกนเข้าคลัง ร้านต้องใช้เวลารวบรวมข้อมูลตรวจสอบ</p></article>
+          <article class="problem-card"><span class="problem-no">03</span><div class="problem-icon"><svg class="icon"><use href="#i-file"/></svg></div><h3>ไม่มีใบรายการประจำถุง</h3><p>จำนวนพัสดุในแต่ละถุงตรวจนับยาก และไม่มีเอกสาร A4 สำหรับเก็บอ้างอิง</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="section workflow-section">
+      <div class="container">
+        <div class="workflow-layout">
+          <div>
+            <span class="section-kicker">เปลี่ยนขั้นตอนแพ็คให้ง่ายขึ้น</span>
+            <h2>4 ขั้นตอน<br><em>ทุกชิ้นค้นย้อนหลังได้</em></h2>
+            <p class="section-description">ติดตั้งมือถือเหนือโต๊ะแพ็ค ไม่ต้องเปลี่ยนระบบออเดอร์เดิมของร้าน</p>
+            <div class="steps">
+              <div class="step"><div class="step-index">01</div><div><h3>สแกน Tracking</h3><p>วางพัสดุในกรอบกล้อง ระบบอ่านเลขที่รู้จักและตรวจรูปแบบก่อนบันทึก</p></div></div>
+              <div class="step"><div class="step-index">02</div><div><h3>บันทึกวิดีโอและภาพ</h3><p>เก็บคลิปสั้นคู่กับ Tracking ตามด้วยภาพนิ่งหลังคลิปจบ</p></div></div>
+              <div class="step"><div class="step-index">03</div><div><h3>จัดเข้าถุงขนส่ง</h3><p>มี Bag ID จำนวนชิ้น และประวัติแยกตามถุง SPX / LEX-All / ขนส่งอื่น</p></div></div>
+              <div class="step"><div class="step-index">04</div><div><h3>พิมพ์ใบ A4 / PDF</h3><p>พิมพ์หนึ่งถุงหรือเลือกหลายถุงแล้วออกเอกสารชุดเดียวจาก Android</p></div></div>
+            </div>
+          </div>
+          <div class="manifest-panel" aria-label="ตัวอย่างใบรายการจากระบบ">
+            <div class="manifest-chrome"><span></span><span></span><span></span><small>PARCELGUARD / MANIFEST</small></div>
+            <div class="manifest-paper">
+              <div class="paper-head"><div><b>PARCELGUARD</b><small>ใบรายการพัสดุประจำถุง</small></div><div class="paper-qr" aria-hidden="true">▦</div></div>
+              <div class="paper-summary"><div><small>รหัสถุง</small><b>BAG-DEMO-001</b></div><div><small>ขนส่ง</small><b>LEX-All</b></div><div><small>รายการ</small><b>35 ชิ้น</b></div></div>
+              <div class="paper-table-head"><span>ลำดับ</span><span>Tracking</span><span>หลักฐาน</span></div>
+              <div class="paper-row"><span>001</span><b>TH12345AU6789Z</b><span>✓</span></div>
+              <div class="paper-row"><span>002</span><b>LEXPU0000000011</b><span>✓</span></div>
+              <div class="paper-row"><span>003</span><b>WM000000005TH</b><span>✓</span></div>
+              <div class="paper-row"><span>004</span><b>KEXLM1000000000</b><span>✓</span></div>
+              <div class="paper-faded-row"></div><div class="paper-faded-row short"></div>
+              <div class="paper-total"><span>รวม</span><strong>35 PARCELS</strong></div>
+              <div class="paper-sig">ผู้ตรวจนับ: _____________________</div>
+              <small class="paper-watermark">ตัวอย่างเอกสารจำลอง ไม่ใช่หลักฐานการรับของโดยขนส่ง</small>
+            </div>
+            <div class="manifest-footer"><svg class="icon"><use href="#i-printer"/></svg> ถุง 100 ชิ้น? แบ่งหน้า A4 ให้อัตโนมัติ</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="section demo-section">
+      <div class="container">
+        <div class="section-head center">
+          <span class="section-kicker">PRODUCT DEMO</span>
+          <h2>ดูระบบทำงาน <em>ก่อนตัดสินใจ</em></h2>
+          <p>พื้นที่สำหรับวิดีโอสาธิตจากการแพ็คจริง เมื่อมีคลิปที่ปิดบังข้อมูลลูกค้าเรียบร้อยแล้ว</p>
+        </div>
+        <div class="demo-stage">
+          <div class="demo-screen">
+            <div class="demo-decoration"><span>PG / DEMO</span><span>OFFLINE PACKING FLOW</span></div>
+            <div class="demo-play"><span class="play-ring"><svg class="icon"><use href="#i-play"/></svg></span><h3>วิดีโอสาธิต ParcelGuard</h3><p>กำลังเตรียมคลิปจากการใช้งานจริง</p></div>
+            <video id="demoVideo" class="real-demo-video" controls playsinline preload="none" hidden aria-label="วิดีโอสาธิต ParcelGuard"></video>
+          </div>
+          <div class="demo-bottom"><span><span class="online-pill"></span> วิดีโอจริงยังไม่อัปโหลด — ไม่ใช้ภาพสมมติอ้างว่าเป็นผลทดสอบ</span><span>Android → Tracking → MP4 → A4/PDF</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="section features-section">
+      <div class="container">
+        <div class="section-head center">
+          <span class="section-kicker">FEATURES</span>
+          <h2>ออกแบบมาเพื่องานแพ็ค<br><em>ไม่ใช่แค่สแกนบาร์โค้ด</em></h2>
+          <p>ฟังก์ชันที่พัฒนาจากปัญหาในร้านออนไลน์จริง และกำลังทดสอบกับอุปกรณ์ก่อนเปิดขาย</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card feature-emphasis"><span class="feature-icon"><svg class="icon"><use href="#i-scan"/></svg></span><h3>Smart Tracking Scan</h3><p>รองรับหลายรูปแบบ Tracking ที่ผ่านการทดสอบ และให้ตรวจเลขที่ไม่รู้จักก่อนบันทึก ลดโอกาสสแกนรหัสคัดแยกผิดตัว</p><div class="feature-tags"><span>SPX</span><span>LEX-All</span><span>Flash</span></div></article>
+          <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-video"/></svg></span><h3>ภาพ + วิดีโอรายชิ้น</h3><p>จับคู่ไฟล์หลักฐานกับ Tracking เพื่อย้อนดูว่าเกิดอะไรขึ้นระหว่างการแพ็คได้ง่ายขึ้น</p></article>
+          <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-bag"/></svg></span><h3>รายการแยกตามถุง</h3><p>สร้าง Bag ID เปิด–ปิดถุง ตรวจนับจำนวน และรวมหลายถุงเพื่อพิมพ์ได้</p></article>
+          <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-printer"/></svg></span><h3>พิมพ์ A4 / บันทึก PDF</h3><p>ออกใบสรุปติดถุงและรายการ Tracking แบบละเอียด พร้อมแบ่งหน้าอัตโนมัติสำหรับถุงขนาดใหญ่</p></article>
+          <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-search"/></svg></span><h3>ค้นหลักฐานย้อนหลัง</h3><p>เปิดประวัติราย Tracking และไฟล์ที่บันทึกไว้จากมือถือ โดยไม่ต้องค้นในแกลเลอรีทีละรูป</p></article>
+          <article class="feature-card"><span class="feature-icon"><svg class="icon"><use href="#i-monitor"/></svg></span><h3>Hybrid สำหรับ Windows</h3><p>ตัวเลือกเชื่อมหลักฐานไปคอมผ่านเครือข่ายภายในร้าน สำหรับการค้นและเก็บสำเนาเพิ่มเติม</p></article>
+        </div>
+        <div class="feature-note"><svg class="icon"><use href="#i-shield"/></svg> ข้อมูลภาพและวิดีโอของงานแพ็คเก็บในเครื่องเป็นหลัก; คุณสมบัติที่รองรับขึ้นอยู่กับรุ่นมือถือและการตั้งค่าของร้าน</div>
+      </div>
+    </section>
+
+    <section id="pricing" class="section pricing-section">
+      <div class="container">
+        <div class="section-head center">
+          <span class="section-kicker">PRICING</span>
+          <h2>เลือกระบบที่ <em>เหมาะกับร้านคุณ</em></h2>
+          <p>ราคาที่วางแผนสำหรับช่วงเปิดตัว • ยังไม่เปิดจำหน่ายหรือเก็บเงิน</p>
+        </div>
+        <div class="pricing-grid">
+          <article class="price-card">
+            <div class="price-heading"><span class="plan-icon"><svg class="icon"><use href="#i-scan"/></svg></span><div><h3>ParcelGuard Mobile</h3><p>ร้านเล็ก–กลาง ใช้ Android อย่างเดียว</p></div></div>
+            <div class="price-line"><span class="currency">฿</span><strong>490</strong><span class="price-unit">/ ชำระครั้งเดียว*</span></div>
+            <ul class="plan-features">
+              <li><svg class="icon"><use href="#i-check"/></svg> ระบบสแกน Tracking</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> บันทึกภาพ + วิดีโอรายชิ้น</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> จัดถุงและค้นย้อนหลัง</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> พิมพ์ A4 และ Save as PDF</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> ใช้งานข้อมูลในมือถือ</li>
+            </ul>
+            <button class="btn btn-secondary btn-block" type="button" data-trial>ทดลองฟรี 14 วัน <svg class="icon"><use href="#i-arrow"/></svg></button>
+          </article>
+          <article class="price-card price-featured">
+            <div class="popular-tag">สำหรับร้านที่ต้องการเก็บหลักฐานบน PC</div>
+            <div class="price-heading"><span class="plan-icon"><svg class="icon"><use href="#i-monitor"/></svg></span><div><h3>ParcelGuard Hybrid</h3><p>Android + Windows PC</p></div></div>
+            <div class="price-line"><span class="currency">฿</span><strong>990</strong><span class="price-unit">/ ชำระครั้งเดียว*</span></div>
+            <ul class="plan-features">
+              <li><svg class="icon"><use href="#i-check"/></svg> ทุกอย่างในแพ็ก Mobile</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> โปรแกรม ParcelGuard PC</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> ซิงก์หลักฐานผ่าน Wi-Fi ร้าน</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> ค้นภาพและคลิปจากคอมพิวเตอร์</li>
+              <li><svg class="icon"><use href="#i-check"/></svg> เพิ่มช่องทางสำรองหลักฐาน</li>
+            </ul>
+            <button class="btn btn-primary btn-block" type="button" data-trial>ทดลองฟรี 14 วัน <svg class="icon"><use href="#i-arrow"/></svg></button>
+          </article>
+        </div>
+        <p class="pricing-disclaimer">* รูปแบบ License จำนวนเครื่อง สิทธิ์อัปเดต ระยะเวลาซัพพอร์ต และเงื่อนไขการชำระเงินจะประกาศให้ชัดเจนก่อนเปิดขาย ไม่มีระบบชำระเงินบนหน้าเว็บนี้</p>
+      </div>
+    </section>
+
+    <section id="faq" class="section faq-section">
+      <div class="container faq-layout">
+        <div class="faq-intro"><span class="section-kicker">FAQ</span><h2>คำถามที่พบบ่อย</h2><p>ข้อมูลสำหรับผู้สนใจใช้งานก่อนเปิดทดลองจริง</p><div class="faq-graphic"><svg class="icon"><use href="#i-shield"/></svg><span>YOUR PACKING EVIDENCE<br><strong>YOUR CONTROL.</strong></span></div></div>
+        <div class="faq-items">
+          <details><summary>ทดลองฟรี 14 วันได้ทันทีไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ยังไม่ได้ครับ ขณะนี้ทีมกำลังเตรียมระบบสมัครทดลองและ License ปุ่มบนเว็บจะแสดงสถานะก่อนเปิดบริการ โดยยังไม่มีการเก็บเงินหรือส่ง APK ให้ลูกค้าทั่วไป</p></details>
+          <details><summary>ต้องใช้เครื่องสแกนบาร์โค้ดเพิ่มไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>สำหรับ Android สามารถใช้กล้องมือถือที่รองรับได้ แต่ความเร็วและความแม่นยำขึ้นกับคุณภาพกล้อง แสง และใบปะหน้า หากเลขบางรูปแบบอ่านไม่ได้ ระบบมีขั้นตอนให้ตรวจยืนยันหรือกรอกเอง</p></details>
+          <details><summary>แอปใช้แบบไม่ต่ออินเทอร์เน็ตได้หรือไม่? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>การเก็บหลักฐานบนมือถือออกแบบเป็น Offline-first ส่วนการซิงก์ไปคอมต้องใช้เครือข่ายภายในร้าน และเมื่อเปิดระบบ License อาจต้องเชื่อมต่อเป็นครั้งคราวเพื่อตรวจสิทธิ์</p></details>
+          <details><summary>หลักฐานจาก ParcelGuard ใช้ยื่นเคลมได้แน่นอนไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ไม่สามารถรับประกันได้ เอกสารและไฟล์เป็นหลักฐานการทำงานฝั่งร้าน ไม่ใช่หลักฐานยืนยันว่าขนส่งรับพัสดุรายชิ้นเข้าคลังแล้ว การพิจารณาขึ้นอยู่กับเงื่อนไขขนส่งและข้อมูลประกอบอื่น</p></details>
+          <details><summary>ถุง SPX มี 100 ชิ้น จะพิมพ์ครบไหม? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>ระบบจัดหน้า Tracking 50 รายการต่อหน้า A4 จึงแบ่งถุง 100 ชิ้นออกเป็นสองหน้ารายละเอียดได้ และรองรับการเลือกหลายถุงออกเป็นงานพิมพ์ชุดเดียว</p></details>
+          <details><summary>ข้อมูลลูกค้าจะถูกนำไปขายหรือขึ้น Cloud หรือไม่? <svg class="icon"><use href="#i-chevron"/></svg></summary><p>รุ่นที่กำลังทดสอบเก็บหลักฐานในเครื่องเป็นหลัก ไม่มีการนำรูปพัสดุขึ้นเซิร์ฟเวอร์ขาย License โดยอัตโนมัติ ก่อนเปิดขายจะเผยแพร่นโยบายความเป็นส่วนตัวและเงื่อนไขข้อมูลอย่างเป็นทางการอีกครั้ง</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing-section">
+      <div class="container">
+        <div class="closing-card">
+          <div class="closing-grid" aria-hidden="true"></div>
+          <div class="closing-copy"><span class="section-kicker">PACK SMARTER. KEEP EVIDENCE.</span><h2>ทุกถุงที่ส่งออกไป<br><em>ควรตรวจสอบย้อนหลังได้</em></h2><p>เปลี่ยนการแพ็คจากการจำ มาเป็นรายการและหลักฐานที่ค้นเจอเมื่อจำเป็น</p><div class="closing-actions"><button class="btn btn-primary btn-large" type="button" data-trial>ทดลองฟรี 14 วัน <svg class="icon"><use href="#i-arrow"/></svg></button><span>กำลังเตรียมเปิดให้ใช้</span></div></div>
+          <div class="closing-symbol" aria-hidden="true"><svg class="icon"><use href="#i-package"/></svg><span>PG</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-top">
+      <div><a class="brand footer-brand" href="#top"><span class="brand-symbol"><svg class="icon"><use href="#i-package"/></svg></span><span>Parcel<span class="brand-accent">Guard</span><small>PACKING EVIDENCE</small></span></a><p>แพ็คแล้ว มีหลักฐาน<br>ออกแบบเพื่อร้านค้าออนไลน์ที่ต้องการตรวจสอบงานแพ็คย้อนหลัง</p></div>
+      <nav aria-label="ลิงก์ท้ายหน้า"><a href="#features">ฟีเจอร์</a><a href="#how-it-works">วิธีใช้งาน</a><a href="#pricing">ราคา</a><a href="#faq">คำถามที่พบบ่อย</a></nav>
+    </div>
+    <div class="container footer-bottom"><span>© <span id="footerYear">2026</span> ParcelGuard. Pre-launch preview.</span><span>เว็บไซต์นี้ยังไม่เปิดขาย ไม่รับเงิน และไม่มีการลงทะเบียนจริง</span></div>
+  </footer>
+
+  <dialog id="trialDialog" class="trial-dialog" aria-labelledby="trialTitle">
+    <div class="dialog-content">
+      <div class="dialog-icon"><svg class="icon"><use href="#i-clock"/></svg></div>
+      <span class="section-kicker">COMING SOON</span>
+      <h2 id="trialTitle">ทดลองใช้ฟรี 14 วัน<br><em>กำลังเตรียมเปิดให้ใช้งาน</em></h2>
+      <p>ParcelGuard กำลังทดสอบระบบสแกน การเก็บหลักฐาน และระบบ License อยู่ครับ เมื่อพร้อมแล้วจึงจะเปิดให้สมัครและดาวน์โหลดรุ่นทดลองอย่างเป็นทางการ</p>
+      <div class="dialog-note"><svg class="icon"><use href="#i-lock"/></svg><span>ขณะนี้ยังไม่มีการเก็บข้อมูลสมัคร ไม่ส่ง APK และไม่รับชำระเงินผ่านเว็บไซต์</span></div>
+      <form method="dialog"><button class="btn btn-primary btn-block" autofocus>รับทราบ <svg class="icon"><use href="#i-check"/></svg></button></form>
+    </div>
+  </dialog>
+</body>
+</html>
