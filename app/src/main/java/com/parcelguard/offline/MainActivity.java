@@ -288,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
         TextView service=text("ขนส่งสำหรับถุงใหม่ • LEX-All = LEX / Flash / ไปรษณีย์ไทย",12);service.setTextColor(MUTED);bagInfo.addView(service);
         bagRow.addView(bagInfo,new LinearLayout.LayoutParams(0,-2,1));
         Spinner carrierSelector=new Spinner(this);
-        String[] options={"SPX","J&T","Flash","LEX","LEX+Flash","LEX-All","Other"};
+        String[] options={"SPX","LEX-All","J&T","Flash","other"};
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,options){
             @Override public View getView(int position,View convert,android.view.ViewGroup parent){
                 TextView v=text(getItem(position),15);v.setTextColor(ORANGE);v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
@@ -296,7 +296,14 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         carrierSelector.setAdapter(adapter);
-        for(int i=0;i<options.length;i++)if(options[i].equals(carrier))carrierSelector.setSelection(i);
+        // UI-only migration: removed legacy menu entries remain valid in existing bags.
+        // A previous LEX or LEX+Flash bag selects LEX-All for the NEXT bag;
+        // its stored SQLite carrier remains unchanged and scan decisions use db.bagCarrier(bag).
+        String menuCarrier=carrier;
+        if("LEX".equalsIgnoreCase(menuCarrier) || "LEX+Flash".equalsIgnoreCase(menuCarrier))
+            menuCarrier="LEX-All";
+        for(int i=0;i<options.length;i++)
+            if(options[i].equalsIgnoreCase(menuCarrier)){carrierSelector.setSelection(i);break;}
         carrierSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
             public void onNothingSelected(android.widget.AdapterView<?> a){}
             public void onItemSelected(android.widget.AdapterView<?> a,View v,int i,long id){carrier=options[i];}
