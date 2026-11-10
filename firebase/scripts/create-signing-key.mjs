@@ -1,0 +1,11 @@
+import {generateKeyPairSync} from "node:crypto";
+import {writeFileSync,chmodSync} from "node:fs";
+const {privateKey,publicKey}=generateKeyPairSync("ec",{namedCurve:"prime256v1"});
+const priv=privateKey.export({type:"pkcs8",format:"pem"});
+const pub=publicKey.export({type:"spki",format:"der"}).toString("base64");
+const path="trial-signing-private.pem";
+writeFileSync(path,priv,{mode:0o600,flag:"wx"});
+chmodSync(path,0o600);
+console.log("Created LOCAL private key: "+path+" (NEVER commit or share).");
+console.log("TRIAL_VERIFY_SPKI = "+pub);
+console.log("Copy private PEM securely into Firebase secret PG_TRIAL_SIGNING_PRIVATE_KEY.");

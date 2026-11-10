@@ -1,0 +1,4 @@
+{
+  "functions":[{"source":"functions","codebase":"trial"}],
+  "firestore":{"rules":"firestore.rules"}
+}

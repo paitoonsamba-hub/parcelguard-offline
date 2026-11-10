@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Trial data is managed exclusively by Firebase Admin in Cloud Functions.
+    match /trialAccounts/{accountId} { allow read, write: if false; }
+    match /trialDevices/{deviceKey} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

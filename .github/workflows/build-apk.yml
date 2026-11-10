@@ -2,7 +2,7 @@ name: Build ParcelGuard APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feature/trial-v050]
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -43,6 +43,15 @@ jobs:
           mkdir -p /tmp/pg-multi-bag-check
           javac -d /tmp/pg-multi-bag-check app/src/main/java/com/parcelguard/offline/BagManifestPages.java app/src/main/java/com/parcelguard/offline/BatchManifestPlan.java app/src/test/java/com/parcelguard/offline/BatchManifestPlanSmokeTest.java
           java -cp /tmp/pg-multi-bag-check com.parcelguard.offline.BatchManifestPlanSmokeTest
+      - name: Verify Trial 7-day offline policy
+        run: |
+          mkdir -p /tmp/pg-trial-check
+          javac -d /tmp/pg-trial-check app/src/main/java/com/parcelguard/offline/TrialPolicy.java app/src/test/java/com/parcelguard/offline/TrialPolicySmokeTest.java
+          java -cp /tmp/pg-trial-check com.parcelguard.offline.TrialPolicySmokeTest
+      - name: Test Firebase trial issuance and device binding
+        run: |
+          node --check firebase/functions/index.js
+          node --test firebase/functions/test/*.test.js
       - name: Build Debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
       - name: Upload APK

@@ -54,6 +54,7 @@ import java.util.zip.*;
 
 public class MainActivity extends AppCompatActivity {
     private ParcelDb db;
+    private TrialManager trialManager;
     private HybridSync hybridSync;
     private final Handler hybridHandler = new Handler(Looper.getMainLooper());
     private final Runnable hybridTick = new Runnable(){@Override public void run(){if(hybridSync!=null)hybridSync.request();hybridHandler.postDelayed(this,30000);}};
@@ -115,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(saved);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         db = new ParcelDb(this);
+        trialManager = new TrialManager(this);
         hybridSync = new HybridSync(this,db,msg->runOnUiThread(()->Toast.makeText(this,msg,Toast.LENGTH_SHORT).show()));
         hybridHandler.postDelayed(hybridTick,12000);
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
@@ -130,8 +132,10 @@ public class MainActivity extends AppCompatActivity {
         cleanupVideos();
         String previous=db.latestOpenBag();
         if(previous!=null){bag=previous;carrier=db.bagCarrier(previous);}
-        else createNewBag(false);
-        showScan();
+        if(trialManager.canPack()){
+            if(bag.isEmpty())createNewBag(false);
+            showScan();
+        }else showTrialScreen();
     }
 
     private TextView text(String value, int size) {
@@ -213,6 +217,74 @@ public class MainActivity extends AppCompatActivity {
             TextView heading=prominent(subtitle,18,WHITE);root.addView(heading,spaced(-2,2));
         }
     }
+
+    /** Trial is separate from the parcel history and export screens. */
+    private void showTrialScreen(){
+        if(root!=null)pauseCamera();
+        base("บัญชีและสิทธิ์ใช้งาน");
+        LinearLayout trial=card(16);
+        trial.addView(prominent("ParcelGuard • ทดลองใช้ฟรี 7 วัน",21,ORANGE));
+        trial.addView(text(trialManager.explain(),14));
+        root.addView(trial,spaced(-2,6));
+        if(!trialManager.isEnabled()){
+            root.addView(text("นี่คือ APK สำหรับทดสอบภายใน ระบบ License ยังไม่เปิดทำงาน",13));
+        }else{
+            if(trialManager.canPack())
+                root.addView(orangeButton("▶  ไปหน้าแพ็คพัสดุ",this::showScan),spaced(54,10));
+            else {
+                root.addView(text("เมื่อหมด Trial จะไม่สามารถสแกนหรือสร้างหลักฐานใหม่ได้ แต่ประวัติและเอกสารเดิมยังเปิดดูได้",13));
+                root.addView(orangeButton("ลงทะเบียนใหม่ และส่งอีเมลยืนยัน",()->trialCredentials(true)),spaced(52,9));
+                addButton("เข้าสู่ระบบบัญชีเดิม",()->trialCredentials(false));
+                addButton("ยืนยันอีเมลแล้ว • ตรวจสิทธิ์ออนไลน์",()->{
+                    message("กำลังตรวจสอบสิทธิ์...");
+                    trialManager.refresh((ok,msg)->{
+                        message(msg);
+                        if(ok)showScan();else showTrialScreen();
+                    });
+                });
+                addButton("ส่งอีเมลยืนยันอีกครั้ง",()->trialManager.resendVerification(
+                    (ok,msg)->message(msg)));
+            }
+        }
+        addButton("ค้นประวัติหลักฐานเดิม",this::showHistory);
+        addButton("ดูรายงานและส่งออก A4 / PDF",this::showReports);
+        addButton("ดูราคา Mobile 490 / Hybrid 990 (ยังไม่เปิดขาย)",()->{
+            Intent open=new Intent(Intent.ACTION_VIEW,Uri.parse("https://parcelguard-offline.pages.dev/#pricing"));
+            startActivity(open);
+        });
+        root.addView(text("สิทธิ์ทดลองอิงเวลาของเซิร์ฟเวอร์ • ลบแอปแล้วลงใหม่ไม่เริ่ม Trial ใหม่\n"+
+            "วิดีโอและรูปพัสดุจะไม่ถูกส่งขึ้นเซิร์ฟเวอร์ License",12));
+    }
+
+    private void trialCredentials(boolean create){
+        LinearLayout fields=new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        fields.setPadding(dp(18),dp(6),dp(18),dp(3));
+        EditText email=new EditText(this);
+        email.setTextColor(WHITE);email.setHintTextColor(MUTED);
+        email.setHint("อีเมล");email.setSingleLine(true);
+        email.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        fields.addView(email);
+        EditText pass=new EditText(this);
+        pass.setTextColor(WHITE);pass.setHintTextColor(MUTED);
+        pass.setHint("รหัสผ่าน (อย่างน้อย 6 ตัว)");
+        pass.setSingleLine(true);
+        pass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        fields.addView(pass);
+        new AlertDialog.Builder(this)
+            .setTitle(create?"ลงทะเบียนทดลองใช้ฟรี 7 วัน":"เข้าสู่ระบบ ParcelGuard")
+            .setView(fields)
+            .setNegativeButton("ยกเลิก",null)
+            .setPositiveButton(create?"ลงทะเบียน":"เข้าสู่ระบบ",(dialog,which)->{
+                message(create?"กำลังลงทะเบียน...":"กำลังเข้าสู่ระบบ...");
+                trialManager.signIn(email.getText().toString(),pass.getText().toString(),
+                    create,(success,msg)->{
+                        message(msg);
+                        if(success)showScan();else showTrialScreen();
+                    });
+            }).show();
+    }
+
     private void showReports(){
         pauseCamera();base("รายงานและหลักฐาน");
         LinearLayout summary=card(14);summary.addView(prominent("รายงานการแพ็ค",18,ORANGE));
@@ -269,6 +341,8 @@ public class MainActivity extends AppCompatActivity {
         working.set(false);
     }
     private void showScan() {
+        if(trialManager!=null && !trialManager.canPack()){showTrialScreen();return;}
+        if(bag.isEmpty())createNewBag(false);
         if(root!=null)pauseCamera();active=true;
         base("ตรวจพัสดุก่อนใส่ถุงใหญ่");
         LinearLayout intro=card(12);
@@ -430,6 +504,7 @@ public class MainActivity extends AppCompatActivity {
     }
     /** Manual evidence capture is a fallback for labels that cameras cannot decode. */
     private void manualCaptureDialog(){
+        if(trialManager!=null && !trialManager.canPack()){showTrialScreen();return;}
         if(autoVideoBusy || manualEvidenceBusy){message("กำลังบันทึกหลักฐานของชิ้นก่อน • รอให้เสร็จก่อน");return;}
         if(db.isClosed(bag)){message("ถุงปิดแล้ว • เปิดถุงใหม่ก่อน");return;}
         final EditText field=new EditText(this);field.setSingleLine(true);field.setTextColor(WHITE);
@@ -525,6 +600,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void recordManualCode(String code){
+        if(trialManager!=null && !trialManager.canPack()){showTrialScreen();return;}
         if(autoVideoBusy || manualEvidenceBusy || db.isClosed(bag)){message("ยังไม่พร้อมบันทึก • ตรวจสถานะถุง");return;}
         if(db.exists(code)){message("เลขพัสดุซ้ำ: "+code);return;}
         Bitmap shot=preview==null?null:preview.getBitmap();
@@ -569,6 +645,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveManualEvidence(String code,String targetBag,Bitmap shot){
+        if(trialManager!=null && !trialManager.canPack()) {
+            shot.recycle();
+            runOnUiThread(()->message("ทดลองครบกำหนดแล้ว • ไม่บันทึกหลักฐานใหม่"));return;
+        }
         File photo=null;
         try{
             if(db.isClosed(targetBag))throw new IOException("ถุงปิดแล้ว");
@@ -585,6 +665,9 @@ public class MainActivity extends AppCompatActivity {
                 if(!marked.compress(Bitmap.CompressFormat.JPEG,82,f))throw new IOException("บันทึกไฟล์ภาพผิดพลาด");
             }
             marked.recycle();
+            if(trialManager!=null && !trialManager.canPack()){
+                photo.delete();runOnUiThread(()->message("สิทธิ์หมดอายุ • ไม่บันทึกงานใหม่"));return;
+            }
             boolean ok=db.addParcel(code,targetBag,photo.getAbsolutePath(),-1);
             if(!ok){photo.delete();runOnUiThread(()->{manualEvidenceBusy=false;message("เลขซ้ำหรือบันทึกไม่สำเร็จ: "+code);});return;}
             runOnUiThread(()->{
@@ -596,6 +679,9 @@ public class MainActivity extends AppCompatActivity {
         }catch(Exception e){if(photo!=null)photo.delete();runOnUiThread(()->{manualEvidenceBusy=false;message("ถ่ายภาพผิดพลาด: "+e.getMessage());});}
     }
     private boolean createNewBag(boolean withConfirm) {
+        if(trialManager!=null && !trialManager.canPack()) {
+            message("สิทธิ์ทดลองหมดอายุ • ยังเปิดถุงใหม่ไม่ได้");return false;
+        }
         if(autoVideoBusy || manualEvidenceBusy || reviewDialogOpen){message("กำลังบันทึกหลักฐาน กรุณารอให้เสร็จก่อนเปิดถุงใหม่");return false;}
         if(withConfirm && !db.isClosed(bag) && db.count(bag)>0) {
             new AlertDialog.Builder(this).setTitle("ถุงเดิมยังไม่ปิด")
@@ -682,6 +768,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCamera() {
+        if(trialManager!=null && !trialManager.canPack())return;
         if(!active || autoVideoBusy) return;
         ListenableFuture<ProcessCameraProvider> future=ProcessCameraProvider.getInstance(this);
         future.addListener(()->{
@@ -716,7 +803,10 @@ public class MainActivity extends AppCompatActivity {
 
     @androidx.camera.core.ExperimentalGetImage
     private void analyze(ImageProxy frame) {
-        if(!active || autoVideoBusy || manualEvidenceBusy || reviewDialogOpen || !working.compareAndSet(false,true)) {frame.close();return;}
+        if((trialManager!=null && !trialManager.canPack()) || !active || autoVideoBusy
+                || manualEvidenceBusy || reviewDialogOpen || !working.compareAndSet(false,true)) {
+            frame.close();return;
+        }
         Image media=frame.getImage();
         if(media==null) {working.set(false);frame.close();return;}
         InputImage input=InputImage.fromMediaImage(media, frame.getImageInfo().getRotationDegrees());
@@ -825,6 +915,9 @@ public class MainActivity extends AppCompatActivity {
             try(FileOutputStream fos=new FileOutputStream(photo)) {if(!marked.compress(Bitmap.CompressFormat.JPEG,83,fos))throw new IOException("บันทึก JPEG ไม่สำเร็จ");}
             marked.recycle();
             long offset=recording!=null && recordingBag.equals(bag)?Math.max(0,System.currentTimeMillis()-recordingStartTime):-1;
+            if(trialManager!=null && !trialManager.canPack()){
+                photo.delete();runOnUiThread(()->message("สิทธิ์หมดอายุ • ไม่บันทึกงานใหม่"));return;
+            }
             boolean ok=db.addParcel(tracking,bag,photo.getAbsolutePath(),offset);
             if(!ok) {photo.delete(); runOnUiThread(()->message("บันทึกฐานข้อมูลไม่สำเร็จ: "+tracking));return;}
             final String targetBag=bag;
@@ -1314,6 +1407,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(){pauseCamera();base("ตั้งค่ากล้อง / ส่งออกข้อมูล / ความเป็นส่วนตัว");
+        if(trialManager!=null && trialManager.isEnabled()){
+            root.addView(prominent("บัญชีและสิทธิ์ทดลอง 7 วัน",17,ORANGE));
+            root.addView(text(trialManager.explain(),13));
+            addButton("จัดการบัญชี / ตรวจสิทธิ์",this::showTrialScreen);
+        }
         root.addView(prominent("วิดีโอคลิปอัตโนมัติรายพัสดุ",17,ORANGE));
         CheckBox automaticClip=new CheckBox(this);
         automaticClip.setTextColor(WHITE);
@@ -1614,6 +1712,7 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onDestroy(){
         hybridHandler.removeCallbacks(hybridTick);
         if(hybridSync!=null)hybridSync.close();
+        if(trialManager!=null)trialManager.close();
         pauseCamera();
         scanner.close();
         cameraExecutor.shutdown();

@@ -1,6 +1,35 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.parcelguard.offline'; compileSdk 35
- defaultConfig { applicationId 'com.parcelguard.offline'; minSdk 26; targetSdk 35; versionCode 21; versionName '0.4.16-carrier-menu-cleanup' }
+
+// An internal APK keeps the old offline app behavior. Commercial builds MUST
+// set PG_TRIAL_ENABLED=true and all six PG_TRIAL_* configuration variables.
+// None of these public Firebase identifiers are signing secrets.
+def pgEnabled = 'true'.equalsIgnoreCase(System.getenv('PG_TRIAL_ENABLED') ?: 'false')
+def pgAppId = System.getenv('PG_TRIAL_FIREBASE_APP_ID') ?: ''
+def pgApiKey = System.getenv('PG_TRIAL_FIREBASE_API_KEY') ?: ''
+def pgProject = System.getenv('PG_TRIAL_FIREBASE_PROJECT_ID') ?: ''
+def pgEndpoint = System.getenv('PG_TRIAL_ENDPOINT') ?: ''
+def pgVerifier = System.getenv('PG_TRIAL_VERIFY_SPKI') ?: ''
+if (pgEnabled && ([pgAppId,pgApiKey,pgProject,pgEndpoint,pgVerifier].any { it.isEmpty() }
+                  || !pgEndpoint.startsWith('https://'))) {
+    throw new GradleException('Commercial Trial enabled but PG_TRIAL_* Firebase/endpoint/public key config is missing')
+}
+android {
+ namespace 'com.parcelguard.offline'
+ compileSdk 35
+ buildFeatures { buildConfig true }
+ defaultConfig {
+  applicationId 'com.parcelguard.offline'
+  minSdk 26
+  targetSdk 35
+  versionCode 22
+  versionName '0.5.0-trial-engine-preview'
+  buildConfigField 'boolean','TRIAL_ENABLED', pgEnabled ? 'true' : 'false'
+  buildConfigField 'String','TRIAL_FIREBASE_APP_ID', groovy.json.JsonOutput.toJson(pgAppId)
+  buildConfigField 'String','TRIAL_FIREBASE_API_KEY', groovy.json.JsonOutput.toJson(pgApiKey)
+  buildConfigField 'String','TRIAL_FIREBASE_PROJECT_ID', groovy.json.JsonOutput.toJson(pgProject)
+  buildConfigField 'String','TRIAL_ENDPOINT', groovy.json.JsonOutput.toJson(pgEndpoint)
+  buildConfigField 'String','TRIAL_VERIFY_SPKI', groovy.json.JsonOutput.toJson(pgVerifier)
+ }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies {
@@ -13,4 +42,6 @@ dependencies {
  implementation 'com.google.mlkit:barcode-scanning:17.3.0'
  implementation 'com.google.mlkit:text-recognition:16.0.1'
  implementation 'com.google.zxing:core:3.5.3'
+ implementation platform('com.google.firebase:firebase-bom:35.1.0')
+ implementation 'com.google.firebase:firebase-auth'
 }
