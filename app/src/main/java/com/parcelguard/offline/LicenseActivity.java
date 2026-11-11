@@ -84,6 +84,9 @@ public class LicenseActivity extends AppCompatActivity {
         TextView sub = label("บัญชีผู้ใช้ • ทดลอง 7 วัน • License", 14);
         sub.setGravity(Gravity.CENTER);
         layout.addView(sub);
+        TextView offers=label("ซื้อขาด: Android ฿490  |  Android + PC ฿990\nชำระเงินกับผู้ขายก่อน แล้วนำคีย์ที่ได้รับมากรอก", 13);
+        offers.setTextColor(0xFFAFBAC6);
+        layout.addView(offers);
         feedback = label("", 15);
         layout.addView(feedback);
         if (auth.getCurrentUser() != null) {
