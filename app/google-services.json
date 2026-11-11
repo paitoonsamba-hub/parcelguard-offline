@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1003660036380",
+    "project_id": "parcelguard-license",
+    "storage_bucket": "parcelguard-license.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1003660036380:android:bd5631a9d5f1dff6fdd2d9",
+        "android_client_info": {
+          "package_name": "com.parcelguard.offline"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALkS1TLi8V2IubWmmA202oZISHSbNPysI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

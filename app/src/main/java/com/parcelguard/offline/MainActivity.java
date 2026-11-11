@@ -111,8 +111,26 @@ public class MainActivity extends AppCompatActivity {
     private final int MUTED = 0xFFAFBAC6;
     private final int GREEN = 0xFF12C987;
 
+    private final Handler licenseHandler = new Handler(Looper.getMainLooper());
+    private final Runnable licenseTick = new Runnable() {
+        @Override public void run() {
+            if (!LicenseGate.allowed()) {
+                startActivity(new Intent(MainActivity.this, LicenseActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK));
+                finish();
+                return;
+            }
+            licenseHandler.postDelayed(this, 10000);
+        }
+    };
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        if (!LicenseGate.allowed()) {
+            startActivity(new Intent(this, LicenseActivity.class));
+            finish();
+            return;
+        }
+        licenseHandler.postDelayed(licenseTick, 10000);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         db = new ParcelDb(this);
         hybridSync = new HybridSync(this,db,msg->runOnUiThread(()->Toast.makeText(this,msg,Toast.LENGTH_SHORT).show()));
@@ -1314,6 +1332,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(){pauseCamera();base("ตั้งค่ากล้อง / ส่งออกข้อมูล / ความเป็นส่วนตัว");
+        root.addView(prominent("บัญชีผู้ใช้และสิทธิ์การใช้งาน",17,ORANGE));
+        addButton("🔑 บัญชีและ License Key",()->{
+            Intent intent=new Intent(this,LicenseActivity.class);
+            intent.putExtra("manage_license",true);
+            startActivity(intent);
+        });
+        root.addView(text("ตรวจสอบวันหมดอายุทดลองใช้ 7 วัน หรือกรอก License Key หลังชำระเงิน",12));
         root.addView(prominent("วิดีโอคลิปอัตโนมัติรายพัสดุ",17,ORANGE));
         CheckBox automaticClip=new CheckBox(this);
         automaticClip.setTextColor(WHITE);
@@ -1612,6 +1637,7 @@ public class MainActivity extends AppCompatActivity {
             else message("ต้องอนุญาตกล้องในตั้งค่าแอปก่อนใช้งาน");}
     }
     @Override protected void onDestroy(){
+        licenseHandler.removeCallbacks(licenseTick);
         hybridHandler.removeCallbacks(hybridTick);
         if(hybridSync!=null)hybridSync.close();
         pauseCamera();
