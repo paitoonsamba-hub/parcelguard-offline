@@ -28,11 +28,13 @@ public class LicenseActivity extends AppCompatActivity {
     private LinearLayout layout;
     private TextView feedback;
     private boolean loading = false;
+    private boolean manageMode = false;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         auth = FirebaseAuth.getInstance();
         functions = FirebaseFunctions.getInstance("asia-southeast1");
+        manageMode = getIntent().getBooleanExtra("manage_license", false);
         draw();
         if (auth.getCurrentUser() != null) checkAccess();
         else showMessage("เข้าสู่ระบบเพื่อเริ่มทดลองใช้ ParcelGuard 7 วัน");
@@ -88,6 +90,7 @@ public class LicenseActivity extends AppCompatActivity {
             layout.addView(label("บัญชี: " + auth.getCurrentUser().getEmail(), 14));
             action("ตรวจสอบสิทธิ์อีกครั้ง", this::checkAccess);
             action("กรอก License Key", this::showRedeem);
+            if (manageMode) action("กลับไปหน้าตั้งค่า", this::finish);
             action("ออกจากระบบ", () -> {
                 LicenseGate.clear();
                 auth.signOut();
@@ -144,8 +147,16 @@ public class LicenseActivity extends AppCompatActivity {
             long expires=num(data.get("expiresAt")), serverNow=num(data.get("serverNow"));
             if (Boolean.TRUE.equals(data.get("active")) && expires > serverNow) {
                 LicenseGate.grant(Math.min(expires-serverNow,15*60*1000L));
-                startActivity(new Intent(this,MainActivity.class));
-                finish();
+                if (manageMode) {
+                    String date = new SimpleDateFormat("dd/MM/yyyy HH:mm",new Locale("th","TH"))
+                        .format(new Date(expires));
+                    boolean trial = Boolean.TRUE.equals(data.get("trial"));
+                    showMessage((trial ? "ทดลองใช้งานอยู่" : "License ใช้งานได้") +
+                        "\nวันหมดอายุ: " + date + "\nสามารถกดกรอก License Key เพื่อต่ออายุได้");
+                } else {
+                    startActivity(new Intent(this,MainActivity.class));
+                    finish();
+                }
             } else {
                 LicenseGate.clear();
                 showMessage("หมดระยะทดลองแล้ว กรุณากรอก License Key เพื่อใช้งานต่อ");
