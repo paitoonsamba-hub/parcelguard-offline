@@ -145,14 +145,23 @@ public class LicenseActivity extends AppCompatActivity {
             }
             Map<?,?> data=(Map<?,?>)task.getResult().getData();
             long expires=num(data.get("expiresAt")), serverNow=num(data.get("serverNow"));
-            if (Boolean.TRUE.equals(data.get("active")) && expires > serverNow) {
-                LicenseGate.grant(Math.min(expires-serverNow,15*60*1000L));
+            boolean lifetime = Boolean.TRUE.equals(data.get("lifetime"));
+            if (Boolean.TRUE.equals(data.get("active")) && (lifetime || expires > serverNow)) {
+                LicenseGate.grant(lifetime ? 15*60*1000L : Math.min(expires-serverNow,15*60*1000L));
                 if (manageMode) {
-                    String date = new SimpleDateFormat("dd/MM/yyyy HH:mm",new Locale("th","TH"))
-                        .format(new Date(expires));
                     boolean trial = Boolean.TRUE.equals(data.get("trial"));
-                    showMessage((trial ? "ทดลองใช้งานอยู่" : "License ใช้งานได้") +
-                        "\nวันหมดอายุ: " + date + "\nสามารถกดกรอก License Key เพื่อต่ออายุได้");
+                    String plan = String.valueOf(data.get("plan"));
+                    if (lifetime) {
+                        showMessage(("pro".equals(plan) ?
+                            "ParcelGuard Pro (Android + Windows)" : "ParcelGuard Mobile (Android)") +
+                            "\nสิทธิ์ใช้งาน: ตลอดชีพ (ไม่มีวันหมดอายุ)" +
+                            "\nสามารถกรอกคีย์ Pro เพื่ออัปเกรดได้");
+                    } else {
+                        String date = new SimpleDateFormat("dd/MM/yyyy HH:mm",new Locale("th","TH"))
+                            .format(new Date(expires));
+                        showMessage((trial ? "ทดลองใช้งานอยู่" : "License แบบกำหนดระยะเวลา") +
+                            "\nวันหมดอายุ: " + date + "\nกรอก License Key เพื่อเปลี่ยนเป็นซื้อขาดได้");
+                    }
                 } else {
                     startActivity(new Intent(this,MainActivity.class));
                     finish();
