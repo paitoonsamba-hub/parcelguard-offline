@@ -1,0 +1,39 @@
+name: Deploy ParcelGuard Firebase backend
+
+# Deliberately manual; never deploy from an unreviewed push or PR.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    # Restrict cloud trust to this feature branch until reviewed.
+    if: github.ref == 'refs/heads/feature/firebase-trial-v0.5'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Workload Identity Federation settings
+        env:
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$WIF_PROVIDER" || { echo "::error::Set GCP_WIF_PROVIDER repository variable"; exit 1; }
+          test -n "$WIF_SERVICE_ACCOUNT" || { echo "::error::Set GCP_DEPLOY_SERVICE_ACCOUNT repository variable"; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Authenticate without exporting permanent service-account keys
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: parcelguard-license
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - name: Install Firebase CLI and function dependencies
+        run: |
+          npm install --global firebase-tools@14
+          npm --prefix functions install --no-audit --no-fund
+      - name: Deploy license Cloud Functions and Firestore rules
+        run: firebase deploy --only functions,firestore:rules --project parcelguard-license --non-interactive
