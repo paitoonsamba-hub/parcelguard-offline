@@ -1332,6 +1332,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSettings(){pauseCamera();base("ตั้งค่ากล้อง / ส่งออกข้อมูล / ความเป็นส่วนตัว");
+        root.addView(prominent("บัญชีผู้ใช้และสิทธิ์การใช้งาน",17,ORANGE));
+        addButton("🔑 บัญชีและ License Key",()->{
+            Intent intent=new Intent(this,LicenseActivity.class);
+            intent.putExtra("manage_license",true);
+            startActivity(intent);
+        });
+        root.addView(text("ตรวจสอบวันหมดอายุทดลองใช้ 7 วัน หรือกรอก License Key หลังชำระเงิน",12));
         root.addView(prominent("วิดีโอคลิปอัตโนมัติรายพัสดุ",17,ORANGE));
         CheckBox automaticClip=new CheckBox(this);
         automaticClip.setTextColor(WHITE);
