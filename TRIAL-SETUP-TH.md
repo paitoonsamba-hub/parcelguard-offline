@@ -12,6 +12,23 @@ Android authentication gate and server code are implemented on the feature branc
 - Email-account recreation or use of a different email can trigger another trial. Cross-account/device abuse controls are **not implemented** and require a separate solution.
 - Production use requires App Check enforcement, monitoring, rate limiting, and an offline licensing strategy. Android anti-tampering is not absolute.
 
+## ออก License Key จาก Google Cloud Shell (ไม่ต้องสร้าง Service Account Key)
+
+วิธีนี้ใช้บัญชี Google ที่ลงชื่อเข้า Cloud Shell อยู่แล้ว โดยบัญชีนั้นต้องมีสิทธิ์เขียน Firestore ในโปรเจกต์ `parcelguard-license`. **ห้ามส่งคีย์ที่สร้างหรือภาพหน้าจอแสดงคีย์ให้ใคร**
+
+```bash
+cd ~/parcelguard-deploy
+git pull --ff-only
+gcloud config get-value project
+node functions/scripts/issue-license.js 30
+```
+
+ผลสำเร็จคือ `New license (show once): PG-...` ให้คัดลอกคีย์เก็บไว้ในที่ปลอดภัย แล้วกรอกคีย์ที่หน้า **กรอก License Key** ในแอปทดสอบ ค่า `30` คือระยะเวลาสิทธิ์แบบชำระเงิน 30 วัน เปลี่ยนเป็น `365` สำหรับ 365 วันได้ คีย์แต่ละดอกใช้กับบัญชีเดียวเท่านั้น หลังใช้แล้วไม่สามารถโอนให้บัญชีอื่นผ่านแอปได้
+
+ถ้า Cloud Shell แจ้ง `Could not load the default credentials` ให้ตรวจสิทธิ์ของบัญชีและวิธี ADC ตามเอกสาร Google Cloud ก่อน อย่าสร้างหรือส่งไฟล์ service account JSON ในแชต การพิมพ์คีย์ลง Terminal จะอยู่ใน output ของ Terminal และผู้ที่มองเห็นหน้าจออาจเห็นคีย์
+
+ต้องให้ Cloud Functions `redeemLicense` และ `checkAccess` ทำงานจริงก่อนทดสอบ การออกคีย์เพียงอย่างเดียว **ไม่ได้เปิดสิทธิ์ให้บัญชีใดทันที** จนกว่าบัญชีนั้นจะ Redeem คีย์
+
 ## Deploy prerequisites
 1. Select the Firebase project `parcelguard-license` and confirm billing supports 2nd-gen Cloud Functions (Blaze plan required).
 2. On a trusted development machine with Node.js 22 and Firebase CLI, run:
