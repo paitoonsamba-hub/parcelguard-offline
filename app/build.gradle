@@ -10,8 +10,8 @@ android {
         applicationId 'com.parcelguard.offline'
         minSdk 26
         targetSdk 35
-        versionCode 24
-        versionName '0.5.2-license-settings'
+        versionCode 25
+        versionName '0.6.0-lifetime-plans'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
