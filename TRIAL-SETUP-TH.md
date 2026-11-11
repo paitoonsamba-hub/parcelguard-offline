@@ -1,4 +1,6 @@
-# ParcelGuard V0.5.1 — Firebase trial / license
+# ParcelGuard V0.5.1 — Legacy trial / license notes
+
+> This document describes the original 7-day trial and term-key testing. **Current lifetime sale plans are in [LIFETIME-LICENSE-TH.md](LIFETIME-LICENSE-TH.md)**. The original functions were already deployed to Firebase; changes on the feature branch still require a new deploy. Do not use the old duration-day key issuance instructions for new purchases.
 
 ## Status
 Android authentication gate and server code are implemented on the feature branch; **not deployed to Firebase**. No payment processing is included. The 7-day trial cannot work until deployment and testing succeed.
