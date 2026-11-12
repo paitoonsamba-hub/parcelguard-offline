@@ -49,6 +49,8 @@ exports.redeemLicense = onCall(options, async req => {
     const [keyDoc, userDoc] = await Promise.all([tx.get(keyRef), tx.get(userRef)]);
     if (!keyDoc.exists) throw new HttpsError("not-found", "License not found.");
     const license = keyDoc.data();
+    if (license.revokedAt)
+      throw new HttpsError("failed-precondition","License key has been revoked.");
     if (license.redeemedBy && license.redeemedBy !== uid)
       throw new HttpsError("already-exists", "License already redeemed.");
     const now = Date.now();

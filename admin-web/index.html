@@ -16,6 +16,8 @@
       <button class="nav-btn active" data-view="overview"><span>◫</span> ภาพรวม</button>
       <button class="nav-btn" data-view="keys"><span>⌑</span> จัดการ License</button>
       <button class="nav-btn" data-view="customers"><span>♙</span> บัญชีลูกค้า</button>
+      <button class="nav-btn" data-view="payments"><span>฿</span> รับเงิน</button>
+      <button class="nav-btn" data-view="audit"><span>◷</span> ประวัติ Admin</button>
     </nav>
     <div class="sidebar-foot"><div class="dot"></div><span id="connection-label">ยังไม่เข้าสู่ระบบ</span></div>
   </aside>
@@ -51,22 +53,56 @@
         </div>
         <div class="panel"><div class="panel-head"><div><h2>License ล่าสุด</h2><p>ข้อมูลจาก Firebase เท่านั้น</p></div><button id="refresh-overview" class="secondary">รีเฟรช</button></div><div id="recent-keys" class="table-wrap"></div></div>
       </div>
+      <div id="payments-view" class="view hidden">
+        <div class="panel">
+          <div class="panel-head"><div><h2>บันทึกรายการรับเงิน (ตรวจด้วยคน)</h2>
+          <p>ต้องเปิดบัญชีธนาคารหรือช่องทางรับเงินจริงเพื่อตรวจยอดด้วยตัวเอง — ระบบนี้ไม่เชื่อมธนาคาร</p></div></div>
+          <form id="payment-form" class="issue-form">
+            <div><label for="payment-plan">แพ็กเกจ</label><select id="payment-plan"><option value="android">Mobile — ฿490</option><option value="pro">Pro — ฿990</option></select></div>
+            <div><label for="payment-method">ช่องทาง</label><select id="payment-method"><option value="bank_transfer">โอนธนาคาร</option><option value="promptpay">พร้อมเพย์</option><option value="cash">เงินสด</option></select></div>
+            <div><label for="payment-reference">เลขอ้างอิงรายการที่ตรวจแล้ว (ไม่ซ้ำ)</label><input id="payment-reference" required minlength="6" maxlength="80" placeholder="TRANSFER-20261112-001" pattern="[A-Za-z0-9_./\\-]{6,80}"/></div>
+            <div><label for="payment-amount">จำนวนเงิน (บาท)</label><input id="payment-amount" inputmode="numeric" type="number" min="1" step="1" value="490" required/></div>
+            <label class="check-row"><input type="checkbox" id="payment-verified" required/><span>ฉันตรวจยอดเงินจริงนอกระบบแล้ว โดยจำนวนเงินและเลขอ้างอิงตรงกับรายการนี้</span></label>
+            <button type="submit" class="primary" id="confirm-payment">บันทึกการรับเงินที่ตรวจแล้ว</button>
+          </form>
+        </div>
+        <div class="panel"><div class="panel-head"><div><h2>ประวัติรับเงินที่บันทึก</h2><p>เฉพาะ 50 รายการล่าสุด • เป็นข้อมูลที่เจ้าของยืนยัน ไม่ใช่ข้อมูลจากธนาคาร</p></div><button id="refresh-payments" class="secondary">รีเฟรช</button></div><div id="payments-table" class="table-wrap"></div></div>
+      </div>
+      <div id="audit-view" class="view hidden">
+        <div class="panel"><div class="panel-head"><div><h2>ประวัติ Admin</h2><p>บันทึกเหตุการณ์ออกคีย์ ยกเลิกคีย์ และบันทึกรายการรับเงิน (ล่าสุด 50 รายการ)</p></div><button id="refresh-audit" class="secondary">รีเฟรช</button></div><div id="audit-table" class="table-wrap"></div></div>
+      </div>
       <div id="keys-view" class="view hidden">
         <div class="panel">
           <div class="panel-head"><div><h2>ออก License Key ใหม่</h2><p>คีย์แสดงครั้งเดียวหลังสร้าง เก็บไว้และส่งให้ลูกค้าอย่างปลอดภัย</p></div></div>
           <form id="issue-form" class="issue-form">
-            <div><label for="plan">แพ็กเกจ</label><select id="plan"><option value="android">Mobile — Android ฿490 (ตลอดชีพ)</option><option value="pro">Pro — Android + PC ฿990 (ตลอดชีพ)</option></select></div>
-            <div><label for="order-reference">เลขอ้างอิงคำสั่งซื้อ (ถ้ามี)</label><input id="order-reference" maxlength="80" pattern="[A-Za-z0-9 _\.\-]*" placeholder="ORDER-001"/></div>
-            <label class="check-row"><input type="checkbox" id="payment-checked" required/><span>ฉันตรวจสอบยอดชำระเงินจริงจากช่องทางภายนอกแล้ว และยืนยันให้ออกคีย์</span></label>
-            <button type="submit" class="primary" id="issue-btn">สร้าง License Key</button>
+            <div><label for="plan">แพ็กเกจ</label><select id="plan"><option value="android">Mobile — Android ฿490</option><option value="pro">Pro — Android + PC ฿990</option></select></div>
+            <div><label for="issue-payment">เลือกรายการรับเงินที่ตรวจแล้วและยังไม่ได้ออกคีย์</label><select id="issue-payment" required><option value="">— บันทึกรับเงินในเมนู รับเงิน ก่อน —</option></select></div>
+            <p class="form-help">หนึ่งรายการรับเงินออกคีย์ได้เพียงหนึ่งดอก • ไม่สามารถออกคีย์ด้วยการติ๊กยืนยันเฉย ๆ อีกต่อไป</p>
+            <button type="submit" class="primary" id="issue-btn">สร้าง License Key จากรายการรับเงิน</button>
           </form>
           <div id="issued-panel" class="issued-panel hidden" aria-live="polite">
             <span>คีย์ใหม่ (แสดงครั้งเดียว — ห้ามเผยแพร่)</span><div class="issued-line"><code id="issued-key"></code><button id="copy-key" class="secondary">คัดลอก</button></div><p id="issued-meta"></p><button id="clear-key" class="text-btn">ซ่อนคีย์ออกจากหน้านี้</button>
           </div>
         </div>
+        <div class="panel"><div class="panel-head"><div><h2>ค้นหา License / ยกเลิกคีย์ที่ยังไม่ถูกใช้</h2><p>ค้นหาจากคีย์เต็มหรือรหัสแฮช 64 หลัก — ระบบไม่แสดงคีย์เต็มย้อนหลัง</p></div></div>
+          <label for="unused-key-select">เลือกคีย์ที่ยังไม่ถูกใช้จาก 50 รายการล่าสุด</label>
+          <select id="unused-key-select"><option value="">— เลือกคีย์ —</option></select>
+          <form id="search-key-form" class="search-line"><input id="search-key-input" placeholder="หรือค้นหาด้วย PG-... / SHA-256 เต็ม 64 หลัก" required/><button type="submit" class="secondary">ค้นหา</button></form>
+          <div id="searched-key"></div>
+          <form id="revoke-form" class="hidden">
+            <input type="hidden" id="revoke-hash"/>
+            <label for="revoke-reason">เหตุผลที่ยกเลิก (บังคับบันทึก)</label><textarea id="revoke-reason" class="reason" minlength="8" maxlength="300" required placeholder="เช่น ออกคีย์ผิดแพ็กเกจ ยังไม่ส่งให้ลูกค้า"></textarea>
+            <p class="form-help">ยกเลิกได้เฉพาะคีย์ที่ยังไม่ได้ Redeem • จะไม่คืนเงินอัตโนมัติหรือเปลี่ยนสิทธิ์บัญชีลูกค้า</p>
+            <button class="danger-btn" type="submit" id="revoke-btn">ยืนยันยกเลิกคีย์นี้</button>
+          </form>
+        </div>
         <div class="panel"><div class="panel-head"><div><h2>ประวัติ License</h2><p>แสดงล่าสุดสูงสุด 50 รายการ คีย์เดิมไม่สามารถดูข้อความจริงย้อนหลังได้</p></div><button id="refresh-keys" class="secondary">รีเฟรช</button></div><div id="keys-table" class="table-wrap"></div></div>
       </div>
       <div id="customers-view" class="view hidden">
+        <div class="panel"><div class="panel-head"><div><h2>ค้นหาลูกค้า</h2><p>ค้นหาด้วย UID เต็ม หรืออีเมล Firebase Authentication ที่ตรงกัน</p></div></div>
+          <form id="search-customer-form" class="search-line"><input id="search-customer-input" placeholder="Firebase UID หรือ customer@example.com" required/><button type="submit" class="secondary">ค้นหา</button></form>
+          <div id="searched-customer"></div>
+        </div>
         <div class="panel"><div class="panel-head"><div><h2>บัญชีลูกค้า</h2><p>สถานะสิทธิ์จาก Firebase — แสดงล่าสุดสูงสุด 50 บัญชี</p></div><button id="refresh-customers" class="secondary">รีเฟรช</button></div><div id="customers-table" class="table-wrap"></div></div>
       </div>
     </section>
