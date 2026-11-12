@@ -141,6 +141,13 @@ function renderKeys(){
   $("metric-total").textContent=state.keys.length;
   $("metric-unused").textContent=state.keys.filter(x=>x.status==="unused").length;
   $("metric-used").textContent=state.keys.filter(x=>x.status==="redeemed").length;
+  const selector=$("unused-key-select");
+  const chosen=selector.value;
+  selector.replaceChildren(new Option("— เลือกคีย์ที่ยังไม่ใช้จากรายการล่าสุด —",""));
+  for(const key of state.keys.filter(x=>x.status==="unused")){
+    selector.add(new Option(short(key.id)+" • "+(key.plan==="pro"?"Pro":key.plan==="android"?"Mobile":"แบบกำหนดระยะเวลา"),key.id));
+  }
+  if([...selector.options].some(x=>x.value===chosen))selector.value=chosen;
 }
 function renderCustomers(){
   const rows=state.customers.map(c=>[
@@ -278,6 +285,15 @@ function searchTable(target,kind,items){
       ]));
   }
 }
+$("unused-key-select").addEventListener("change",async()=>{
+  const hash=$("unused-key-select").value;
+  if(!hash)return;
+  $("search-key-input").value=hash;
+  try{
+    const res=await call("adminSearch")({type:"license",query:hash});
+    searchTable("searched-key","license",res.data.items||[]);
+  }catch(e){flash("เปิดคีย์ไม่สำเร็จ: "+err(e),true);}
+});
 $("search-key-form").addEventListener("submit",async ev=>{
   ev.preventDefault();
   $("revoke-form").classList.add("hidden");
