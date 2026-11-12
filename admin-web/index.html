@@ -85,7 +85,9 @@
           </div>
         </div>
         <div class="panel"><div class="panel-head"><div><h2>ค้นหา License / ยกเลิกคีย์ที่ยังไม่ถูกใช้</h2><p>ค้นหาจากคีย์เต็มหรือรหัสแฮช 64 หลัก — ระบบไม่แสดงคีย์เต็มย้อนหลัง</p></div></div>
-          <form id="search-key-form" class="search-line"><input id="search-key-input" placeholder="PG-... หรือ SHA-256 เต็ม 64 หลัก" required/><button type="submit" class="secondary">ค้นหา</button></form>
+          <label for="unused-key-select">เลือกคีย์ที่ยังไม่ถูกใช้จาก 50 รายการล่าสุด</label>
+          <select id="unused-key-select"><option value="">— เลือกคีย์ —</option></select>
+          <form id="search-key-form" class="search-line"><input id="search-key-input" placeholder="หรือค้นหาด้วย PG-... / SHA-256 เต็ม 64 หลัก" required/><button type="submit" class="secondary">ค้นหา</button></form>
           <div id="searched-key"></div>
           <form id="revoke-form" class="hidden">
             <input type="hidden" id="revoke-hash"/>
