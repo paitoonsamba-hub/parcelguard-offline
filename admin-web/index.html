@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="theme-color" content="#0b1219"/>
+  <meta name="description" content="ParcelGuard Owner License Administration"/>
+  <title>ParcelGuard — Admin Console</title>
+  <link rel="stylesheet" href="./styles.css"/>
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">▣</div><div><b>Parcel<span>Guard</span></b><small>OWNER CONSOLE</small></div></div>
+    <nav aria-label="เมนูหลัก">
+      <button class="nav-btn active" data-view="overview"><span>◫</span> ภาพรวม</button>
+      <button class="nav-btn" data-view="keys"><span>⌑</span> จัดการ License</button>
+      <button class="nav-btn" data-view="customers"><span>♙</span> บัญชีลูกค้า</button>
+    </nav>
+    <div class="sidebar-foot"><div class="dot"></div><span id="connection-label">ยังไม่เข้าสู่ระบบ</span></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="eyebrow">PARCELGUARD / LICENSE MANAGEMENT</span><h1 id="page-title">ภาพรวม</h1></div><div class="account"><span id="user-label">ยังไม่เข้าสู่ระบบ</span><button id="logout-btn" class="ghost hidden">ออกจากระบบ</button></div></header>
+    <div id="flash" class="flash hidden" role="status"></div>
+    <section id="login-screen" class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-icon">▣</div><h2>เข้าสู่ระบบผู้ดูแล</h2><p>บัญชี Firebase ที่ได้รับสิทธิ์ Owner เท่านั้น</p>
+        <form id="login-form">
+          <label for="email">อีเมลผู้ดูแล</label><input id="email" type="email" autocomplete="username" required placeholder="admin@example.com"/>
+          <label for="password">รหัสผ่าน</label><input id="password" type="password" autocomplete="current-password" required/>
+          <button class="primary wide" type="submit" id="login-btn">เข้าสู่ระบบอย่างปลอดภัย</button>
+        </form>
+        <button class="text-btn" id="reset-btn" type="button">ลืมรหัสผ่าน?</button>
+        <button class="text-btn hidden" id="verify-btn" type="button">ส่งอีเมลยืนยันบัญชี</button>
+        <button class="text-btn hidden" id="reload-user-btn" type="button">ตรวจสอบการยืนยันอีเมลอีกครั้ง</button>
+        <p class="disclaimer">ไม่มีการเปิดรับสมัคร Admin สาธารณะ • สิทธิ์ตรวจสอบบนเซิร์ฟเวอร์</p>
+      </div>
+    </section>
+    <section id="dashboard" class="hidden">
+      <div class="notice">การสร้าง License เป็นการบันทึกสิทธิ์เท่านั้น <strong>ไม่ได้ตรวจสอบว่าลูกค้าชำระเงินจริง</strong> กรุณาตรวจยอดก่อนออกคีย์</div>
+      <div id="overview-view" class="view">
+        <div class="metric-grid">
+          <div class="metric"><span>คีย์ที่แสดงในหน้านี้</span><strong id="metric-total">—</strong><small>แสดงล่าสุดสูงสุด 50 รายการ</small></div>
+          <div class="metric"><span>ยังไม่ได้ใช้</span><strong id="metric-unused">—</strong><small>พร้อมส่งให้ลูกค้า</small></div>
+          <div class="metric"><span>ใช้แล้ว</span><strong id="metric-used">—</strong><small>ผูกกับบัญชีแล้ว</small></div>
+          <div class="metric"><span>บัญชีที่แสดง</span><strong id="metric-users">—</strong><small>ล่าสุดสูงสุด 50 รายการ</small></div>
+        </div>
+        <div class="panel intro"><div><span class="eyebrow">PRICING</span><h2>แพ็กเกจซื้อขาด</h2><p>สิทธิ์ตลอดชีพตามแพ็กเกจ ไม่จำกัดด้วยวันหมดอายุแบบรายเดือน</p></div>
+          <div class="price-grid"><div class="price"><span>ParcelGuard Mobile</span><strong>฿490</strong><small>Android ตลอดชีพ</small></div><div class="price pro"><span>ParcelGuard Pro</span><strong>฿990</strong><small>Android + Windows ตลอดชีพ*</small></div></div>
+          <p class="footnote">*การบังคับตรวจสิทธิ์ฝั่ง Windows ยังอยู่ระหว่างพัฒนา ไม่ควรจำหน่าย Pro จนกว่าทดสอบครบ</p>
+        </div>
+        <div class="panel"><div class="panel-head"><div><h2>License ล่าสุด</h2><p>ข้อมูลจาก Firebase เท่านั้น</p></div><button id="refresh-overview" class="secondary">รีเฟรช</button></div><div id="recent-keys" class="table-wrap"></div></div>
+      </div>
+      <div id="keys-view" class="view hidden">
+        <div class="panel">
+          <div class="panel-head"><div><h2>ออก License Key ใหม่</h2><p>คีย์แสดงครั้งเดียวหลังสร้าง เก็บไว้และส่งให้ลูกค้าอย่างปลอดภัย</p></div></div>
+          <form id="issue-form" class="issue-form">
+            <div><label for="plan">แพ็กเกจ</label><select id="plan"><option value="android">Mobile — Android ฿490 (ตลอดชีพ)</option><option value="pro">Pro — Android + PC ฿990 (ตลอดชีพ)</option></select></div>
+            <div><label for="order-reference">เลขอ้างอิงคำสั่งซื้อ (ถ้ามี)</label><input id="order-reference" maxlength="80" pattern="[A-Za-z0-9 _\.\-]*" placeholder="ORDER-001"/></div>
+            <label class="check-row"><input type="checkbox" id="payment-checked" required/><span>ฉันตรวจสอบยอดชำระเงินจริงจากช่องทางภายนอกแล้ว และยืนยันให้ออกคีย์</span></label>
+            <button type="submit" class="primary" id="issue-btn">สร้าง License Key</button>
+          </form>
+          <div id="issued-panel" class="issued-panel hidden" aria-live="polite">
+            <span>คีย์ใหม่ (แสดงครั้งเดียว — ห้ามเผยแพร่)</span><div class="issued-line"><code id="issued-key"></code><button id="copy-key" class="secondary">คัดลอก</button></div><p id="issued-meta"></p><button id="clear-key" class="text-btn">ซ่อนคีย์ออกจากหน้านี้</button>
+          </div>
+        </div>
+        <div class="panel"><div class="panel-head"><div><h2>ประวัติ License</h2><p>แสดงล่าสุดสูงสุด 50 รายการ คีย์เดิมไม่สามารถดูข้อความจริงย้อนหลังได้</p></div><button id="refresh-keys" class="secondary">รีเฟรช</button></div><div id="keys-table" class="table-wrap"></div></div>
+      </div>
+      <div id="customers-view" class="view hidden">
+        <div class="panel"><div class="panel-head"><div><h2>บัญชีลูกค้า</h2><p>สถานะสิทธิ์จาก Firebase — แสดงล่าสุดสูงสุด 50 บัญชี</p></div><button id="refresh-customers" class="secondary">รีเฟรช</button></div><div id="customers-table" class="table-wrap"></div></div>
+      </div>
+    </section>
+    <footer>ParcelGuard · Owner-only console · Firebase Authentication & Cloud Functions</footer>
+  </main>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

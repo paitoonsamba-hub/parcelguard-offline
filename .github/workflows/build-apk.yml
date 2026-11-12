@@ -2,7 +2,7 @@ name: Build ParcelGuard APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feature/admin-dashboard-v0.7]
   pull_request:
     branches: [main]
 jobs:
@@ -19,6 +19,14 @@ jobs:
           node-version: '22'
       - name: Verify lifetime license package logic
         run: node --test functions/test/license-model.test.js
+      - name: Syntax-check Admin server, owner grant and web app
+        run: |
+          node --check functions/index.js
+          node --check functions/admin-functions.js
+          node --check functions/scripts/grant-admin.js
+          node --check admin-web/app.js
+          node --check admin-web/firebase-config.js
+          node -e "const f=require('fs');const v=JSON.parse(f.readFileSync('firebase.json','utf8'));if(v.hosting.public!=='admin-web')process.exit(1)"
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
