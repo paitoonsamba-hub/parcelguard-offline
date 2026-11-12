@@ -2,7 +2,7 @@ name: Build ParcelGuard APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feature/admin-dashboard-v0.7]
   pull_request:
     branches: [main]
 jobs:
