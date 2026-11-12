@@ -72,3 +72,6 @@ exports.redeemLicense = onCall(options, async req => {
     return entitlement(user, now);
   });
 });
+
+// Owner-only dashboard endpoints. Requires Firestore admins/{uid} role=owner.
+Object.assign(exports, require("./admin-functions"));
