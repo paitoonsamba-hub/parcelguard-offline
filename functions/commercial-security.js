@@ -36,9 +36,12 @@ exports.commercialCheckPc=onCall(options,async req=>{
     if(!activePro(user,k.exists?k.data():null,uid,now))
       throw new HttpsError("permission-denied","Pro license inactive, suspended or revoked.");
     const seat=seat.exists?seat.data():null;
-    if(seat&&seat.deviceHash!==device)
+    if(seat&&seat.blockedDeviceHash===device)
+      throw new HttpsError("permission-denied","This PC was released by owner. Contact support.");
+    if(seat&&seat.deviceHash&&seat.deviceHash!==device)
       throw new HttpsError("resource-exhausted","PC seat already occupied. Contact support for a transfer.");
     if(!seat)tx.create(seatRef,{deviceHash:device,boundAt:Timestamp.fromMillis(now),lastSeenAt:Timestamp.fromMillis(now)});
+    else if(!seat.deviceHash)tx.update(seatRef,{deviceHash:device,boundAt:Timestamp.fromMillis(now),lastSeenAt:Timestamp.fromMillis(now)});
     else tx.update(seatRef,{lastSeenAt:Timestamp.fromMillis(now)});
     return {authorized:true,plan:"pro",lifetime:true,features:["android","windows"],
       maxPcDevices:MAX_PC_SEATS,serverNow:now,recheckAfterSeconds:900};
@@ -61,7 +64,7 @@ exports.adminReleasePcSeat=onCall(options,async req=>{
   await db.runTransaction(async tx=>{
     const old=await tx.get(seatRef);
     if(!old.exists)throw new HttpsError("not-found","No PC seat.");
-    tx.delete(seatRef);
+    tx.update(seatRef,{deviceHash:null,blockedDeviceHash:old.get("deviceHash"),releasedAt:Timestamp.now(),releasedBy:adminUid});
     tx.create(db.collection("adminAudit").doc(),{
       action:"commercial_pc_seat_release",actorUid:adminUid,customerUid,reason,
       timestamp:Timestamp.now(),previousDeviceHash:old.get("deviceHash")});
