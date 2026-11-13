@@ -118,6 +118,20 @@ class ProLicense:
         self._approved = True
         return True
 
+    def call_function(self, name: str, payload: dict) -> dict:
+        """Authenticated Firebase callable; no Admin SDK credentials on customer PC."""
+        if not self.uid:
+            raise LicenseError("Sign in first.")
+        if time.monotonic() >= self._jwt_expires:
+            self._refresh()
+        url = "https://asia-southeast1-parcelguard-license.cloudfunctions.net/" + name
+        response = request_json(url, {"data": payload},
+                                {"Authorization": "Bearer " + self._id_token})
+        result = response.get("result")
+        if not isinstance(result, dict):
+            raise LicenseError("Unexpected Firebase function response")
+        return result
+
     def approved_now(self) -> bool:
         try:
             return self.verify_pro()
