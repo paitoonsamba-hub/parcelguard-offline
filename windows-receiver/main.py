@@ -6,6 +6,9 @@ Start the listener only after Firebase checks an active Pro lifetime license.
 from __future__ import annotations
 import os
 import threading
+import secrets
+import time
+import hashlib
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
@@ -164,39 +167,75 @@ class ParcelGuardWindow:
             return
         self._busy = True
         self.login_button.configure(state="disabled")
-        self.status.set("กำลังตรวจสอบ License กับ Firebase...")
+        self.status.set("ขั้นตอน 1/3 • กำลังตรวจสอบบัญชีและ License Pro กับ Firebase...")
         self.password.delete(0, "end")
 
         def worker():
+            stage = "ตรวจสอบ License กับ Firebase"
+            new_server = None
+            registered = False
+            session_id = None
             try:
                 self.license.sign_in(email, password)
-                # The PC creates a strong LAN upload token; Firebase shares it only
-                # with another client authenticated as this SAME Pro UID.
+                self.notify("ขั้นตอน 2/3 • License Pro ผ่านแล้ว กำลังเปิดรับพัสดุบน PC...")
+                stage = "ตรวจสอบ IP เครือข่ายภายในร้าน"
                 host = private_lan_ip()
                 if host.startswith("127."):
                     raise LicenseError("ไม่พบ IP LAN สำหรับ PC โปรดเชื่อมต่อ Wi-Fi ร้าน")
+                stage = "เปิดพอร์ต 8766 บน Windows"
+                new_server = serve(self.state)
+                stage = "ลงทะเบียน Auto Connect กับ Firebase"
+                self.notify("ขั้นตอน 3/3 • กำลังลงทะเบียน PC กับ Firebase...")
                 session_id = secrets.token_hex(16)
                 auto_token = secrets.token_urlsafe(32)
                 self.license.call_function("registerPcReceiver", {
                     "host": host, "token": auto_token, "sessionId": session_id
                 })
-                self.state.paired[__import__("hashlib").sha256(auto_token.encode()).hexdigest()] = {
-                    "id": session_id, "name": "Same Firebase account", "createdAt": int(time.time())
-                }
+                registered = True
+                with self.state.lock:
+                    self.state.paired[hashlib.sha256(auto_token.encode()).hexdigest()] = {
+                        "id": session_id,
+                        "name": "Same Firebase account",
+                        "createdAt": int(time.time()),
+                    }
                 self.auto_session_id = session_id
                 self.auto_token = auto_token
                 self.auto_stop.clear()
-                server = serve(self.state)
-                self.server = server
-                self.thread = threading.Thread(target=server.serve_forever, daemon=True)
+                self.server = new_server
+                self.thread = threading.Thread(target=new_server.serve_forever, daemon=True)
                 self.thread.start()
                 threading.Thread(target=self.maintain_auto_registration, daemon=True).start()
                 self.notify("Pro ผ่าน • เชื่อม Android บัญชีเดียวกันอัตโนมัติ • เปิดรับ ZIP พอร์ต 8766")
                 self.root.after(0, lambda: self.pair_btn.configure(state="normal"))
                 self.root.after(0, lambda: self.stop_btn.configure(state="normal"))
-            except (LicenseError, OSError) as exc:
-                self.notify("ไม่สามารถเปิด Receiver: " + str(exc))
+            except Exception as exc:
+                # Always leave the loading screen, even if an unexpected Python
+                # exception occurs in the background thread. Avoid leaking
+                # credentials, JWTs, shared tokens, or raw HTTP responses.
+                if new_server:
+                    try:
+                        if self.server is new_server:
+                            new_server.shutdown()
+                        new_server.server_close()
+                    except OSError:
+                        pass
+                self.server = None
+                self.auto_session_id = None
+                self.auto_token = None
+                self.auto_stop.set()
+                if registered and session_id:
+                    try:
+                        self.license.call_function("unregisterPcReceiver", {"sessionId": session_id})
+                    except Exception:
+                        pass
                 self.license.sign_out()
+                if isinstance(exc, LicenseError):
+                    reason = str(exc)
+                elif isinstance(exc, OSError):
+                    reason = "ตรวจสอบ Wi-Fi, Windows Firewall และพอร์ต 8766"
+                else:
+                    reason = "ข้อผิดพลาดภายในโปรแกรม (" + type(exc).__name__ + ")"
+                self.notify("เชื่อมต่อไม่สำเร็จ • " + stage + " • " + reason)
             finally:
                 self._busy = False
                 self.root.after(0, lambda: self.login_button.configure(state="normal"))
