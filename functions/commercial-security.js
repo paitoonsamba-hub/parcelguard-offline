@@ -64,6 +64,7 @@ exports.adminReleasePcSeat=onCall(options,async req=>{
   await db.runTransaction(async tx=>{
     const old=await tx.get(seatRef);
     if(!old.exists)throw new HttpsError("not-found","No PC seat.");
+    if(typeof old.get("deviceHash")!=="string")throw new HttpsError("failed-precondition","PC seat already released.");
     tx.update(seatRef,{deviceHash:null,blockedDeviceHash:old.get("deviceHash"),releasedAt:Timestamp.now(),releasedBy:adminUid});
     tx.create(db.collection("adminAudit").doc(),{
       action:"commercial_pc_seat_release",actorUid:adminUid,customerUid,reason,
