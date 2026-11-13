@@ -160,13 +160,14 @@ public final class PairQrActivity extends AppCompatActivity {
                     String line;while((line=reader.readLine())!=null && b.length()<10000)b.append(line);
                 }
                 JSONObject reply=new JSONObject(b.toString());String token=reply.getString("token");
+                String pcName=reply.optString("pc_name",host);
                 if(token.length()<24)throw new Exception("Token ที่ได้รับไม่ถูกต้อง");
                 // Store only the long-term credential. The one-time QR code is discarded.
                 prefs.edit().putString("host",host).putString("token",token).putString("device_id",reply.optString("id",""))
-                    .putBoolean("enabled",true).apply();
+                    .putBoolean("enabled",true).putString("pc_name",pcName).putLong("last_pc_paired",System.currentTimeMillis()).apply();
                 connected=true;
                 runOnUiThread(()->{
-                    Toast.makeText(this,"จับคู่ PC สำเร็จ • เปิด Wi-Fi Sync แล้ว",Toast.LENGTH_LONG).show();
+                    Toast.makeText(this,"เชื่อมต่อ PC: "+pcName+" สำเร็จ • เปิด Wi-Fi Sync แล้ว",Toast.LENGTH_LONG).show();
                     setResult(RESULT_OK,new Intent().putExtra("paired",true));finish();
                 });
             }catch(Exception e){String message=e.getMessage();runOnUiThread(()->{pairingDialogVisible=false;status.setText("จับคู่ไม่สำเร็จ: "+message+" • สร้าง QR ใหม่บน PC แล้วลองอีกครั้ง");});}

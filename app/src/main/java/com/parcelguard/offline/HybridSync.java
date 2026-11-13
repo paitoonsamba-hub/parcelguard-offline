@@ -26,6 +26,45 @@ final class HybridSync {
     HybridSync(Context c,ParcelDb database,Listener l){context=c.getApplicationContext();db=database;
         settings=c.getSharedPreferences("hybrid_sync",Context.MODE_PRIVATE);listener=l;}
     SharedPreferences settings(){return settings;}
+    void checkPcStatus(java.util.function.Consumer<String> callback){
+        worker.execute(()->{
+            String host=settings.getString("host","").trim();
+            String token=settings.getString("token","").trim();
+            if(host.isEmpty()||token.isEmpty()){
+                callback.accept("ยังไม่ได้จับคู่ PC • กดสแกน QR ก่อน");
+                return;
+            }
+            HttpURLConnection conn=null;
+            try{
+                ConnectivityManager cm=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                android.net.Network network=cm.getActiveNetwork();
+                NetworkCapabilities cap=network==null?null:cm.getNetworkCapabilities(network);
+                if(cap==null||!cap.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)){
+                    callback.accept("ออฟไลน์ • กรุณาเชื่อม Wi-Fi ร้าน");
+                    return;
+                }
+                conn=(HttpURLConnection)new URL("http://"+host+":8766/api/device/status").openConnection();
+                conn.setRequestMethod("GET");conn.setConnectTimeout(3500);conn.setReadTimeout(3500);
+                conn.setRequestProperty("Authorization","Bearer "+token);
+                int status=conn.getResponseCode();
+                if(status!=200){
+                    callback.accept("PC ไม่พร้อม ("+status+") • "+host+" • ตรวจโปรแกรม PC และการล็อกอิน Pro");
+                    return;
+                }
+                StringBuilder response=new StringBuilder();
+                try(BufferedReader reader=new BufferedReader(new InputStreamReader(conn.getInputStream(),"UTF-8"))){
+                    String line;while((line=reader.readLine())!=null&&response.length()<8192)response.append(line);
+                }
+                org.json.JSONObject data=new org.json.JSONObject(response.toString());
+                if(!data.optBoolean("connected",false))throw new IOException("PC ไม่ยืนยันการเชื่อมต่อ");
+                String pcName=data.optString("pc_name",host);
+                settings.edit().putString("pc_name",pcName).putLong("last_pc_verified",System.currentTimeMillis()).apply();
+                callback.accept("● เชื่อมต่อแล้ว: "+pcName+" ("+host+") • พร้อมซิงก์ผ่าน Wi-Fi");
+            }catch(Exception e){
+                callback.accept("● PC ออฟไลน์/ติดต่อไม่ได้: "+host+" • ตรวจ Wi-Fi และพอร์ต 8766");
+            }finally{if(conn!=null)conn.disconnect();}
+        });
+    }
     void request(){if(!settings.getBoolean("enabled",false)||!running.compareAndSet(false,true))return;
         worker.execute(()->{try{sync();}catch(Exception e){report("ซิงก์ล้มเหลว: "+e.getMessage());}
             finally{running.set(false);}});
@@ -81,7 +120,7 @@ final class HybridSync {
                             result=bytes.toString("UTF-8");
                         }
                         if(!result.contains("\"imported\"") && !result.contains("\"already_imported\""))throw new IOException("PC ไม่ยืนยันรับข้อมูล");
-                        settings.edit().putString(key,signature).apply();uploaded++;
+                        settings.edit().putString(key,signature).putLong("last_pc_sync",System.currentTimeMillis()).apply();uploaded++;
                     }finally{conn.disconnect();}
                 }finally{zip.delete();}
             }

@@ -2,7 +2,7 @@ name: Build ParcelGuard APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, feature/admin-dashboard-v0.7, feature/license-after-sales-v0.7.1, fix/qr-sync-monitor-v0.8.5]
+    branches: [main, feature/admin-dashboard-v0.7, feature/license-after-sales-v0.7.1, fix/qr-sync-monitor-v0.8.5, feature/android-pc-link-status-v0.8.6]
   pull_request:
     branches: [main]
 jobs:
