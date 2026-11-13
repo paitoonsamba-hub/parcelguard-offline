@@ -39,6 +39,7 @@ class ParcelGuardWindow:
         self.root.configure(bg=APP_BG)
         self.license = ProLicense()
         self.state = ReceiverState(app_folder(), self.license)
+        self.state.on_event = self.handle_event
         self.server = None
         self.thread = None
         self.qr_image = None
@@ -128,8 +129,27 @@ class ParcelGuardWindow:
         self.pair_btn.configure(state="disabled")
         self.stop_btn = self._button(buttons, "ปิดรับพัสดุและออกจากระบบ", self.stop)
         self.stop_btn.configure(state="disabled")
+        self.sync_status = tk.StringVar(value="รอจับคู่ Android และรับไฟล์ ZIP")
+        tk.Label(outer, textvariable=self.sync_status, bg=CARD, fg=TEXT,
+                 font=("Segoe UI", 10), padx=12, pady=12, anchor="w", justify="left",
+                 wraplength=600).pack(fill="x", pady=(12, 0))
+        self._button(outer, "เปิดโฟลเดอร์หลักฐานที่ได้รับ", self.open_parcels)
         self._label(outer, "หลักฐานจัดเก็บใน %LOCALAPPDATA%\\ParcelGuardPC\\parcels", 9, MUTED).pack(anchor="w", pady=(14, 0))
         self._label(outer, "ซิงก์ผ่าน Wi-Fi ส่วนตัวเท่านั้น • ห้ามเปิดพอร์ต 8766 สู่อินเทอร์เน็ต", 9, MUTED).pack(anchor="w", pady=(5, 0))
+
+    def handle_event(self, event):
+        def update():
+            count = self.state.count_parcels()
+            self.sync_status.set(event["message"] + " • หลักฐานใน PC " + str(count) + " รายการ")
+            if event["kind"] == "error":
+                self.status.set(event["message"])
+        self.root.after(0, update)
+
+    def open_parcels(self):
+        folder = self.state.folder / "parcels"
+        folder.mkdir(parents=True, exist_ok=True)
+        os.startfile(str(folder))
+        self.sync_status.set("โฟลเดอร์หลักฐาน • " + str(self.state.count_parcels()) + " รายการ")
 
     def notify(self, text):
         self.root.after(0, lambda: self.status.set(text))
