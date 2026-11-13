@@ -58,6 +58,28 @@ class ParcelGuardWindow:
         button.pack(fill="x", pady=(12, 0))
         return button
 
+    def _placeholder(self, entry, hint, password=False):
+        """Show a hint only while the input is empty and unfocused."""
+        hint_color = "#687d8e"
+        normal_color = "#14212a"
+        def show_hint():
+            if not entry.get():
+                entry.configure(foreground=hint_color, show="")
+                entry.insert(0, hint)
+                entry._pg_hint = True
+        def focus_in(_event):
+            if getattr(entry, "_pg_hint", False):
+                entry.delete(0, "end")
+                entry.configure(foreground=normal_color, show="●" if password else "")
+                entry._pg_hint = False
+        def focus_out(_event):
+            if not entry.get():
+                show_hint()
+        entry._pg_hint = False
+        entry.bind("<FocusIn>", focus_in)
+        entry.bind("<FocusOut>", focus_out)
+        show_hint()
+
     def _build(self):
         outer = tk.Frame(self.root, bg=APP_BG, padx=28, pady=23)
         outer.pack(fill="both", expand=True)
@@ -70,10 +92,15 @@ class ParcelGuardWindow:
         self.login_card.pack(fill="x", pady=(22, 12))
         self._label(self.login_card, "ลงชื่อเข้าใช้บัญชี Firebase ที่ซื้อ Pro ฿990", 13, TEXT, True).pack(anchor="w")
         self._label(self.login_card, "ต้องเป็นบัญชีเดียวกับที่ Redeem คีย์ Pro แล้ว", 10, MUTED).pack(anchor="w", pady=(5, 12))
+        self._label(self.login_card, "อีเมล (Email)", 11, TEXT, True).pack(anchor="w", pady=(0, 5))
         self.email = ttk.Entry(self.login_card, font=("Segoe UI", 11))
         self.email.pack(fill="x", ipady=6, pady=(0, 10))
+        self._placeholder(self.email, "example@gmail.com")
+
+        self._label(self.login_card, "รหัสผ่าน (Password)", 11, TEXT, True).pack(anchor="w", pady=(0, 5))
         self.password = ttk.Entry(self.login_card, show="●", font=("Segoe UI", 11))
         self.password.pack(fill="x", ipady=6)
+        self._placeholder(self.password, "กรอกรหัสผ่าน Firebase", password=True)
         self.login_button = self._button(self.login_card, "ตรวจสอบ Pro และเปิดรับพัสดุ", self.start, True)
 
         self._label(outer, "สถานะระบบ", 11, MUTED, True).pack(anchor="w", pady=(12, 5))
@@ -103,8 +130,8 @@ class ParcelGuardWindow:
     def start(self):
         if self._busy or self.server:
             return
-        email = self.email.get().strip()
-        password = self.password.get()
+        email = "" if getattr(self.email, "_pg_hint", False) else self.email.get().strip()
+        password = "" if getattr(self.password, "_pg_hint", False) else self.password.get()
         if not email or not password:
             messagebox.showwarning("เข้าสู่ระบบ", "กรอกอีเมลและรหัสผ่าน Firebase")
             return
