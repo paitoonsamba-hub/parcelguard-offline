@@ -56,6 +56,22 @@ class ReceiverState:
         self.claim_expiry = 0.0
         self.paired_file = self.folder / "paired-devices.json"
         self.paired = self._load_pairs()
+        self.on_event = None
+        self.events = []
+
+    def emit(self, kind: str, message: str):
+        item = {"kind": kind, "message": message, "time": int(time.time())}
+        with self.lock:
+            self.events = ([item] + self.events)[:80]
+        if self.on_event:
+            try:
+                self.on_event(item)
+            except Exception:
+                pass
+
+    def count_parcels(self):
+        root = self.folder / "parcels"
+        return sum(1 for p in root.glob("*/manifest.csv") if p.is_file()) if root.exists() else 0
 
     def _load_pairs(self) -> dict:
         try:
@@ -93,6 +109,7 @@ class ReceiverState:
                 "id": ident, "name": name[:80], "createdAt": int(time.time())
             }
             self._save_pairs()
+            self.emit("paired", "Android จับคู่สำเร็จ แต่ยังไม่ได้รับไฟล์พัสดุ")
             return {"id": ident, "token": token}
 
     def valid_token(self, token: str) -> bool:
@@ -209,6 +226,7 @@ def create_handler(state: ReceiverState):
                 return self.respond(404, {"error": "not_found"})
             # Windows receiver must never operate without server-verified Pro access.
             if not state.license_client.approved_now():
+                state.emit("error", "Pro License ไม่ผ่าน (HTTP 403)")
                 return self.respond(403, {"error": "pro_license_required"})
             try:
                 size = int(self.headers.get("Content-Length", "0"))
@@ -232,6 +250,7 @@ def create_handler(state: ReceiverState):
                 return self.respond(200, result) if result else self.respond(403, {"error": "expired_or_invalid_qr"})
             auth = self.headers.get("Authorization", "")
             if not auth.startswith("Bearer ") or not state.valid_token(auth[7:]):
+                state.emit("error", "Token ไม่ตรงหรือไม่ได้จับคู่ (HTTP 401)")
                 return self.respond(401, {"error": "unpaired_device"})
             if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/zip":
                 return self.respond(415, {"error": "expected_zip"})
@@ -249,10 +268,13 @@ def create_handler(state: ReceiverState):
                         remaining -= len(part)
                 with state.lock:
                     result = ingest_zip(tmp, state.folder)
+                state.emit("sync", "ได้รับ ZIP หลักฐานใหม่" if result == "imported" else "ไฟล์พัสดุมีอยู่ใน PC แล้ว")
                 return self.respond(200, {"status": result})
             except (ValueError, zipfile.BadZipFile, UnicodeError, KeyError):
+                state.emit("error", "ZIP ไม่ถูกต้อง (HTTP 400)")
                 return self.respond(400, {"error": "invalid_archive"})
             except OSError:
+                state.emit("error", "บันทึก ZIP ลงดิสก์ไม่สำเร็จ (HTTP 500)")
                 return self.respond(500, {"error": "storage_error"})
             finally:
                 if tmp:
