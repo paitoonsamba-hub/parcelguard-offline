@@ -77,3 +77,6 @@ exports.redeemLicense = onCall(options, async req => {
 
 // Owner-only dashboard endpoints. Requires Firestore admins/{uid} role=owner.
 Object.assign(exports, require("./admin-functions"));
+
+// Same Firebase UID discovery for Pro Windows ↔ Android (no QR needed).
+Object.assign(exports,require("./pc-auto-pair"));
