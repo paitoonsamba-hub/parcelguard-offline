@@ -86,7 +86,8 @@ final class HybridSync {
                 }finally{zip.delete();}
             }
         }
-        if(uploaded>0)report("ซิงก์เข้า PC แล้ว "+uploaded+" รายการ");
+        if(uploaded>0)report("PC ยืนยันรับ ZIP แล้ว "+uploaded+" รายการ");
+        else report("ไม่มีพัสดุใหม่ที่ต้องซิงก์ หรือไฟล์ภาพยังไม่พร้อม");
     }
     private static void makeArchive(File zip,String tracking,String bag,String carrier,File photo,File video,long stamp,long offset,int state)throws Exception {
         String pic="photos/"+safe(tracking)+".jpg";
