@@ -5,6 +5,7 @@ on:
     branches:
       - feature/windows-pro-license-v0.8
       - feature/auto-pc-pair-v0.8.2
+      - fix/windows-login-stuck-v0.8.3
 jobs:
   verify-and-build:
     runs-on: windows-latest
