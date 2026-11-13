@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/windows-pro-license-v0.8
+      - feature/qr-renewal-v0.8.4
 jobs:
   verify-and-build:
     runs-on: windows-latest
