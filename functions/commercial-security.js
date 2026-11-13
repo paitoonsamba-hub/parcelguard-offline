@@ -24,7 +24,7 @@ exports.commercialCheckPc=onCall(options,async req=>{
   const userRef=db.collection("entitlements").doc(uid);
   const seatRef=db.collection("commercialPcSeats").doc(uid);
   return db.runTransaction(async tx=>{
-    const [u,seat]=await Promise.all([tx.get(userRef),tx.get(seatRef)]);
+    const [u,seatSnapshot]=await Promise.all([tx.get(userRef),tx.get(seatRef)]);
     if(!u.exists)throw new HttpsError("permission-denied","No Pro purchase on this account.");
     const user=u.data();
     const hash=user.lastLicenseHash;
@@ -35,7 +35,7 @@ exports.commercialCheckPc=onCall(options,async req=>{
     const now=Date.now();
     if(!activePro(user,k.exists?k.data():null,uid,now))
       throw new HttpsError("permission-denied","Pro license inactive, suspended or revoked.");
-    const seat=seat.exists?seat.data():null;
+    const seat=seatSnapshot.exists?seatSnapshot.data():null;
     if(seat&&seat.blockedDeviceHash===device)
       throw new HttpsError("permission-denied","This PC was released by owner. Contact support.");
     if(seat&&seat.deviceHash&&seat.deviceHash!==device)
