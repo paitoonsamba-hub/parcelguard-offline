@@ -1524,10 +1524,10 @@ public class MainActivity extends AppCompatActivity {
     private void showHybridSettings(){
         android.content.SharedPreferences p=hybridSync.settings();
         LinearLayout layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(18),dp(10),dp(18),dp(8));
-        CheckBox enabled=new CheckBox(this);enabled.setText("เปิดซิงก์อัตโนมัติขณะใช้งานแอป (Wi-Fi เท่านั้น)");enabled.setChecked(p.getBoolean("enabled",false));layout.addView(enabled);
+        CheckBox enabled=new CheckBox(this);enabled.setText("เปิดซิงก์อัตโนมัติขณะใช้งานแอป (Wi-Fi เท่านั้น)");enabled.setChecked(p.getBoolean("enabled",true));layout.addView(enabled);
         EditText ip=new EditText(this);ip.setSingleLine(true);ip.setHint("IP คอม เช่น 192.168.1.100");ip.setInputType(InputType.TYPE_CLASS_TEXT);ip.setText(p.getString("host",""));layout.addView(ip);
         EditText token=new EditText(this);token.setSingleLine(true);token.setHint("Token จาก PC / เพิ่มอุปกรณ์");token.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);token.setText(p.getString("token",""));layout.addView(token);
-        TextView help=new TextView(this);help.setText("เปิด START-LAN-EXPERIMENTAL.bat บน Windows • PC และมือถือใช้ Wi-Fi ร้านเดียวกัน • LAN นี้ไม่เข้ารหัส ห้ามใช้ Wi-Fi สาธารณะหรือเปิดพอร์ตสู่อินเทอร์เน็ต");layout.addView(help);
+        TextView help=new TextView(this);help.setText("โหมดอัตโนมัติ: เปิด ParcelGuard PC และล็อกอิน Firebase บัญชี Pro เดียวกันบนทั้งสองเครื่อง แล้ว Android จะค้นหา PC และซิงก์ทุก 30 วินาทีขณะเปิดแอป • ต้องใช้ Wi-Fi ร้านที่เชื่อถือได้ ห้ามเปิดพอร์ต 8766 สู่อินเทอร์เน็ต");layout.addView(help);
         new AlertDialog.Builder(this).setTitle("Hybrid Sync • LAN ทดลอง").setView(layout)
             .setNegativeButton("ยกเลิก",null).setPositiveButton("บันทึกและซิงก์",(d,w)->{
                 p.edit().putBoolean("enabled",enabled.isChecked()).putString("host",ip.getText().toString().trim()).putString("token",token.getText().toString().trim()).apply();
