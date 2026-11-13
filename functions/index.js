@@ -79,4 +79,5 @@ exports.redeemLicense = onCall(options, async req => {
 Object.assign(exports, require("./admin-functions"));
 
 // Commercial PC pilot; NOT DEPLOYED until Windows integration is field-tested.
-Object.assign(exports, require("./commercial-security"));
+const {commercialCheckPc,adminReleasePcSeat}=require("./commercial-security");
+Object.assign(exports,{commercialCheckPc,adminReleasePcSeat});
