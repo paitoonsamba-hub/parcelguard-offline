@@ -6,6 +6,7 @@ Start the listener only after Firebase checks an active Pro lifetime license.
 from __future__ import annotations
 import os
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
@@ -42,6 +43,9 @@ class ParcelGuardWindow:
         self.thread = None
         self.qr_image = None
         self._busy = False
+        self.qr_expires_at = 0.0
+        self.qr_timer_id = None
+        self.qr_host = None
         self._build()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
@@ -117,7 +121,10 @@ class ParcelGuardWindow:
 
         buttons = tk.Frame(outer, bg=APP_BG)
         buttons.pack(fill="x")
-        self.pair_btn = self._button(buttons, "สร้าง QR จับคู่ Android (90 วินาที)", self.pair)
+        self.pair_btn = self._button(buttons, "สร้าง QR จับคู่ Android", self.pair)
+        self.qr_countdown = tk.StringVar(value="QR ยังไม่ถูกสร้าง")
+        tk.Label(buttons, textvariable=self.qr_countdown, bg=APP_BG, fg=MUTED,
+                 font=("Segoe UI", 11), anchor="w").pack(fill="x", pady=(6, 0))
         self.pair_btn.configure(state="disabled")
         self.stop_btn = self._button(buttons, "ปิดรับพัสดุและออกจากระบบ", self.stop)
         self.stop_btn.configure(state="disabled")
@@ -150,31 +157,76 @@ class ParcelGuardWindow:
                 self.notify("Pro Lifetime ผ่านการตรวจสอบ • PC เปิดรับ ZIP บน Wi-Fi พอร์ต 8766")
                 self.root.after(0, lambda: self.pair_btn.configure(state="normal"))
                 self.root.after(0, lambda: self.stop_btn.configure(state="normal"))
-            except (LicenseError, OSError) as exc:
-                self.notify("ไม่สามารถเปิด Receiver: " + str(exc))
+            except Exception as exc:
+                # Background errors must never leave the UI stuck at "checking".
+                if isinstance(exc, LicenseError):
+                    message = str(exc)
+                elif isinstance(exc, OSError):
+                    message = "ตรวจสอบ Wi-Fi / พอร์ต 8766 / Windows Firewall"
+                else:
+                    message = "ข้อผิดพลาดภายใน (" + type(exc).__name__ + ")"
+                self.notify("เปิด Receiver ไม่สำเร็จ: " + message)
                 self.license.sign_out()
             finally:
                 self._busy = False
                 self.root.after(0, lambda: self.login_button.configure(state="normal"))
         threading.Thread(target=worker, daemon=True).start()
 
+    def _cancel_qr_timer(self):
+        if self.qr_timer_id is not None:
+            self.root.after_cancel(self.qr_timer_id)
+            self.qr_timer_id = None
+
+    def _tick_qr(self):
+        self.qr_timer_id = None
+        if not self.server or not self.qr_expires_at:
+            return
+        remaining = max(0, int(self.qr_expires_at - time.monotonic() + 0.999))
+        if remaining == 0:
+            # Invalidate both the visible QR and its one-time server-side code.
+            with self.state.lock:
+                self.state.claim_code = ""
+                self.state.claim_expiry = 0.0
+            self.qr_expires_at = 0.0
+            self.qr_label.configure(image="")
+            self.qr_image = None
+            self.qr_countdown.set("QR หมดอายุแล้ว — กดปุ่มสร้าง QR ใหม่ได้ทันที")
+            self.qr_note.configure(text="กดปุ่มสร้าง QR ใหม่เพื่อสแกนอีกครั้ง • ไม่ต้องล็อกอินใหม่")
+            self.pair_btn.configure(text="สร้าง QR ใหม่")
+            self.status.set("QR หมดอายุ • PC ยังเปิดรับพัสดุและ License Pro ยังใช้งานได้")
+            return
+        self.qr_countdown.set(f"QR ใช้ได้อีก {remaining} วินาที")
+        self.qr_timer_id = self.root.after(250, self._tick_qr)
+
     def pair(self):
         if not self.server or not self.license.approved_now():
-            self.status.set("ไม่มีสิทธิ์ Pro ที่ยังตรวจสอบได้ — สร้าง QR ไม่ได้")
+            self.status.set("ไม่มีสิทธิ์ Pro ที่ตรวจสอบได้ — สร้าง QR ไม่ได้")
             return
         ip = private_lan_ip()
         if ip.startswith("127."):
             self.status.set("ไม่พบ IP Wi-Fi/LAN ส่วนตัวของ PC")
             return
+        # Every press creates a fresh one-time code and invalidates the old QR.
+        self._cancel_qr_timer()
         code = self.state.new_pairing_code()
+        self.qr_expires_at = time.monotonic() + 90
         pairing_text = f"PGPAIR1|{ip}|{PORT}|{code}"
         img = qrcode.make(pairing_text).convert("RGB").resize((195, 195))
         self.qr_image = ImageTk.PhotoImage(img)
         self.qr_label.configure(image=self.qr_image)
-        self.qr_note.configure(text=f"เปิด Android → ตั้งค่า → เชื่อมต่อ PC ด้วย QR\nIP: {ip}:{PORT}\nQR ใช้ได้ครั้งเดียวภายใน 90 วินาที")
-        self.status.set("QR พร้อมสแกน • จะสร้าง token จับคู่หลังมือถือยืนยันเท่านั้น")
+        self.qr_note.configure(text=f"เปิด Android → ตั้งค่า → เชื่อมต่อ PC ด้วย QR\\nIP: {ip}:{PORT}\\nกดสร้างใหม่ได้ทุกเมื่อ")
+        self.pair_btn.configure(text="สร้าง QR ใหม่ (รหัสเดิมจะใช้ไม่ได้)")
+        self.status.set("QR พร้อมสแกน • กดสร้างใหม่ได้ทันทีเมื่อหมดอายุ")
+        self._tick_qr()
 
     def stop(self):
+        self._cancel_qr_timer()
+        self.qr_expires_at = 0.0
+        with self.state.lock:
+            self.state.claim_code = ""
+            self.state.claim_expiry = 0.0
+        self.qr_countdown.set("QR ยังไม่ถูกสร้าง")
+        self.pair_btn.configure(text="สร้าง QR จับคู่ Android")
         if self.server:
             self.server.shutdown()
             self.server.server_close()
