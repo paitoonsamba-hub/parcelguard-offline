@@ -56,6 +56,34 @@ class ReceiverState:
         self.claim_expiry = 0.0
         self.paired_file = self.folder / "paired-devices.json"
         self.paired = self._load_pairs()
+        self.on_event = None
+        self.recent_events = []
+
+    def event(self, category: str, message: str) -> None:
+        # Never record raw credentials or bearer tokens in logs.
+        record = {"time": int(time.time()), "category": category, "message": message[:240]}
+        with self.lock:
+            self.recent_events = ([record] + self.recent_events)[:60]
+        if self.on_event:
+            self.on_event(record)
+
+    def evidence(self) -> list[dict]:
+        """Read stored parcel manifests, with no sensitive evidence upload to Firebase."""
+        base = self.folder / "parcels"
+        if not base.is_dir():
+            return []
+        rows = []
+        for file in base.glob("*/manifest.csv"):
+            try:
+                with file.open(encoding="utf-8-sig", newline="") as stream:
+                    row = next(csv.DictReader(stream), None)
+                if row:
+                    rows.append({"tracking": row.get("tracking", ""), "bag": row.get("bag", ""),
+                                 "carrier": row.get("carrier", ""), "folder": str(file.parent),
+                                 "received": int(file.stat().st_mtime)})
+            except (OSError, ValueError, UnicodeError, csv.Error):
+                continue
+        return sorted(rows, key=lambda row: row["received"], reverse=True)
 
     def _load_pairs(self) -> dict:
         try:
@@ -93,6 +121,7 @@ class ReceiverState:
                 "id": ident, "name": name[:80], "createdAt": int(time.time())
             }
             self._save_pairs()
+            self.event("paired", "จับคู่สำเร็จ: " + name[:80])
             return {"id": ident, "token": token}
 
     def valid_token(self, token: str) -> bool:
@@ -232,6 +261,7 @@ def create_handler(state: ReceiverState):
                 return self.respond(200, result) if result else self.respond(403, {"error": "expired_or_invalid_qr"})
             auth = self.headers.get("Authorization", "")
             if not auth.startswith("Bearer ") or not state.valid_token(auth[7:]):
+                state.event("error", "อุปกรณ์ไม่ได้จับคู่หรือ Token ไม่ถูกต้อง (HTTP 401)")
                 return self.respond(401, {"error": "unpaired_device"})
             if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/zip":
                 return self.respond(415, {"error": "expected_zip"})
@@ -249,8 +279,10 @@ def create_handler(state: ReceiverState):
                         remaining -= len(part)
                 with state.lock:
                     result = ingest_zip(tmp, state.folder)
+                state.event("sync", "รับ ZIP หลักฐาน: " + ("รายการใหม่" if result == "imported" else "มีรายการเดิมแล้ว"))
                 return self.respond(200, {"status": result})
             except (ValueError, zipfile.BadZipFile, UnicodeError, KeyError):
+                state.event("error", "ไฟล์ ZIP ไม่ผ่านการตรวจสอบ (HTTP 400)")
                 return self.respond(400, {"error": "invalid_archive"})
             except OSError:
                 return self.respond(500, {"error": "storage_error"})

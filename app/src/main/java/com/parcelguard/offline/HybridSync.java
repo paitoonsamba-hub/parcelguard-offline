@@ -13,6 +13,10 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.*;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.google.android.gms.tasks.Tasks;
+import java.util.concurrent.TimeUnit;
 
 /** Foreground, Wi-Fi-only sync. No Internet/cloud. One parcel per ZIP; retries are idempotent on PC. */
 final class HybridSync {
@@ -23,10 +27,12 @@ final class HybridSync {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicBoolean running=new AtomicBoolean(false);
     private final Listener listener;
+    private long nextDiscoveryAt=0L;
+    private static final long DISCOVERY_INTERVAL=120_000L;
     HybridSync(Context c,ParcelDb database,Listener l){context=c.getApplicationContext();db=database;
         settings=c.getSharedPreferences("hybrid_sync",Context.MODE_PRIVATE);listener=l;}
     SharedPreferences settings(){return settings;}
-    void request(){if(!settings.getBoolean("enabled",false)||!running.compareAndSet(false,true))return;
+    void request(){if(!settings.getBoolean("enabled",true)||!running.compareAndSet(false,true))return;
         worker.execute(()->{try{sync();}catch(Exception e){report("ซิงก์ล้มเหลว: "+e.getMessage());}
             finally{running.set(false);}});
     }
@@ -36,6 +42,7 @@ final class HybridSync {
         android.net.Network network=cm.getActiveNetwork();
         NetworkCapabilities cap=network==null?null:cm.getNetworkCapabilities(network);
         if(cap==null||!cap.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)){report("รอ Wi-Fi ร้าน");return;}
+        discoverSameAccountPc();
         String host=settings.getString("host","").trim();String token=settings.getString("token","").trim();
         if(!host.matches("(?:192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3}|10\\.(?:[0-9]{1,3}\\.){2}[0-9]{1,3}|172\\.(?:1[6-9]|2[0-9]|3[01])\\.[0-9]{1,3}\\.[0-9]{1,3})")||token.length()<16){report("กรอก IP ของ PC และ Token ก่อน");return;}
         // PC LAN endpoint is plaintext HTTP: only on private Wi-Fi under direct user control.
@@ -87,6 +94,35 @@ final class HybridSync {
             }
         }
         if(uploaded>0)report("ซิงก์เข้า PC แล้ว "+uploaded+" รายการ");
+    }
+    private void discoverSameAccountPc() {
+        if(FirebaseAuth.getInstance().getCurrentUser()==null)return;
+        long now=android.os.SystemClock.elapsedRealtime();
+        if(now<nextDiscoveryAt)return;
+        nextDiscoveryAt=now+DISCOVERY_INTERVAL;
+        try {
+            Object result=Tasks.await(FirebaseFunctions.getInstance("asia-southeast1")
+                .getHttpsCallable("findPcReceiver").call(),12,TimeUnit.SECONDS).getData();
+            if(!(result instanceof Map))return;
+            Map<?,?> response=(Map<?,?>)result;
+            if(!Boolean.TRUE.equals(response.get("available"))) {
+                report("ยังไม่พบ PC ที่เปิดใช้งาน Pro ด้วยบัญชีเดียวกัน");
+                return;
+            }
+            String host=String.valueOf(response.get("host"));
+            String token=String.valueOf(response.get("token"));
+            String session=String.valueOf(response.get("sessionId"));
+            if(!host.matches("(?:192\\.168\\.[0-9]{1,3}\\.[0-9]{1,3}|10\\.(?:[0-9]{1,3}\\.){2}[0-9]{1,3}|172\\.(?:1[6-9]|2[0-9]|3[01])\\.[0-9]{1,3}\\.[0-9]{1,3})")
+                || !token.matches("[A-Za-z0-9_-]{32,128}") || !session.matches("[A-Fa-f0-9]{32}"))return;
+            boolean changed=!host.equals(settings.getString("host",""))
+                || !token.equals(settings.getString("token",""));
+            settings.edit().putString("host",host).putString("token",token)
+                .putString("auto_session_id",session).apply();
+            if(changed)report("เชื่อม PC บัญชีเดียวกันอัตโนมัติ: "+host);
+        }catch(Exception exception) {
+            // Never print Firebase ID token or shared LAN upload credential.
+            report("ค้นหา PC อัตโนมัติไม่สำเร็จ โปรดตรวจอินเทอร์เน็ตและสิทธิ์ Pro");
+        }
     }
     private static void makeArchive(File zip,String tracking,String bag,String carrier,File photo,File video,long stamp,long offset,int state)throws Exception {
         String pic="photos/"+safe(tracking)+".jpg";

@@ -2,7 +2,7 @@ name: Build ParcelGuard APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, feature/admin-dashboard-v0.7, feature/license-after-sales-v0.7.1]
+    branches: [main, feature/admin-dashboard-v0.7, feature/license-after-sales-v0.7.1, feature/auto-pc-pair-v0.8.2]
   pull_request:
     branches: [main]
 jobs:
@@ -23,6 +23,7 @@ jobs:
         run: |
           node --check functions/index.js
           node --check functions/admin-functions.js
+          node --check functions/pc-auto-pair.js
           node --check functions/scripts/grant-admin.js
           node --check admin-web/app.js
           node --check admin-web/firebase-config.js
