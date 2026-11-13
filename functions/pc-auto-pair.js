@@ -38,7 +38,7 @@ exports.findPcReceiver=onCall(settings,async req=>{
   const snap=await db.collection("pcReceivers").doc(uid).get();
   if(!snap.exists)return {available:false};
   const x=snap.data();
-  if(!privateIp(x.host)||x.port!==8766||x.expiresAt?.toMillis()<=Date.now()||
+  if(!privateIp(x.host)||x.port!==8766||typeof x.expiresAt?.toMillis!=="function"||x.expiresAt.toMillis()<=Date.now()||
      typeof x.token!=="string"||!/^[A-Za-z0-9_-]{32,128}$/.test(x.token))
     return {available:false};
   return {available:true,host:x.host,port:8766,token:x.token,
