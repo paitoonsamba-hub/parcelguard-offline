@@ -77,3 +77,6 @@ exports.redeemLicense = onCall(options, async req => {
 
 // Owner-only dashboard endpoints. Requires Firestore admins/{uid} role=owner.
 Object.assign(exports, require("./admin-functions"));
+
+// Commercial PC pilot; NOT DEPLOYED until Windows integration is field-tested.
+Object.assign(exports, require("./commercial-security"));
