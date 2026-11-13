@@ -1372,6 +1372,11 @@ public class MainActivity extends AppCompatActivity {
             getPreferences(0).edit().putBoolean("voice_on_save", checked).apply();
         });
         addButton("ทดลองเสียงแจ้งเตือน", this::announceSaved);
+        android.content.SharedPreferences pcPrefs=hybridSync.settings();
+        String lastPc=pcPrefs.getString("pc_name","");
+        String currentPcHost=pcPrefs.getString("host","");
+        root.addView(text(currentPcHost.isEmpty()?"PC: ยังไม่ได้จับคู่":
+            "PC ที่จับคู่: "+(lastPc.isEmpty()?currentPcHost:lastPc)+" • IP "+currentPcHost,14));
         addButton("▦ สแกน QR จับคู่กับ ParcelGuard PC",()->startActivity(new Intent(this,PairQrActivity.class)));
         addButton("Wi-Fi ซิงก์กับ ParcelGuard PC",this::showHybridSettings);
         root.addView(text("เสียงพูดต้องมีเสียงภาษาไทยแบบออฟไลน์ในเครื่อง หากยังไม่มีจะดังบี๊บแทน • ปรับระดับเสียงที่ปุ่มเพิ่มเสียงสื่อของมือถือ", 12));
@@ -1527,8 +1532,21 @@ public class MainActivity extends AppCompatActivity {
         CheckBox enabled=new CheckBox(this);enabled.setText("เปิดซิงก์อัตโนมัติขณะใช้งานแอป (Wi-Fi เท่านั้น)");enabled.setChecked(p.getBoolean("enabled",false));layout.addView(enabled);
         EditText ip=new EditText(this);ip.setSingleLine(true);ip.setHint("IP คอม เช่น 192.168.1.100");ip.setInputType(InputType.TYPE_CLASS_TEXT);ip.setText(p.getString("host",""));layout.addView(ip);
         EditText token=new EditText(this);token.setSingleLine(true);token.setHint("Token จาก PC / เพิ่มอุปกรณ์");token.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);token.setText(p.getString("token",""));layout.addView(token);
-        TextView help=new TextView(this);help.setText("เปิด START-LAN-EXPERIMENTAL.bat บน Windows • PC และมือถือใช้ Wi-Fi ร้านเดียวกัน • LAN นี้ไม่เข้ารหัส ห้ามใช้ Wi-Fi สาธารณะหรือเปิดพอร์ตสู่อินเทอร์เน็ต");layout.addView(help);
-        new AlertDialog.Builder(this).setTitle("Hybrid Sync • LAN ทดลอง").setView(layout)
+        TextView linkStatus=new TextView(this);
+        linkStatus.setTextSize(15);
+        linkStatus.setTextColor(0xff12c987);
+        String lastName=p.getString("pc_name","");
+        String lastHost=p.getString("host","");
+        long lastSync=p.getLong("last_pc_sync",0);
+        String stamp=lastSync==0?"ยังไม่มีหลักฐานส่งสำเร็จ":
+            new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm",java.util.Locale.getDefault()).format(new java.util.Date(lastSync));
+        linkStatus.setText(lastHost.isEmpty()?"ยังไม่เคยจับคู่ PC":
+             "PC ที่จับคู่: "+(lastName.isEmpty()?lastHost:lastName)+" ("+lastHost+")\\nซิงก์ล่าสุด: "+stamp+"\\nกำลังตรวจสอบสถานะออนไลน์...");
+        layout.addView(linkStatus);
+        hybridSync.checkPcStatus(message->runOnUiThread(()->linkStatus.setText(message+"\\nซิงก์ล่าสุด: "+stamp)));
+        TextView help=new TextView(this);help.setText("เชื่อม PC ด้วย QR แล้วกดตรวจสถานะ • ต้องใช้ Wi-Fi ร้านเดียวกัน • ห้ามเปิดพอร์ต 8766 สู่อินเทอร์เน็ต");layout.addView(help);
+        new AlertDialog.Builder(this).setTitle("สถานะเชื่อมต่อ ParcelGuard PC").setView(layout)
+            .setNeutralButton("ตรวจ PC อีกครั้ง",(d,w)->showHybridSettings())
             .setNegativeButton("ยกเลิก",null).setPositiveButton("บันทึกและซิงก์",(d,w)->{
                 p.edit().putBoolean("enabled",enabled.isChecked()).putString("host",ip.getText().toString().trim()).putString("token",token.getText().toString().trim()).apply();
                 hybridSync.request();
