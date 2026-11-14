@@ -1,0 +1,7 @@
+{
+  "version": "1.4.0",
+  "channel": "pilot",
+  "releaseDate": "2026-11-14",
+  "notes": "ParcelGuard PC V1.4.0 Pilot - installer, login, local backup and manual update checks. No automatic downloads or installation.",
+  "automaticInstall": false
+}

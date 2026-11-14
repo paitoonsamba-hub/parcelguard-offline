@@ -1,0 +1,110 @@
+name: ParcelGuard PC V1.4.0 Windows Installer (Pilot)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/windows-installer-v1.4.0
+    paths:
+      - pc-installer-source-v140.zip
+      - updates/pc/pilot.json
+      - installer-ci/**
+      - .github/workflows/build-installer.yml
+permissions:
+  contents: read
+jobs:
+  windows-installer:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract verified PC Station source from single ZIP
+        shell: pwsh
+        run: |
+          $archive = 'pc-installer-source-v140.zip'
+          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+            throw 'PC Station V1.4.0 source archive missing. Upload pc-installer-source-v140.zip on this branch; refusing to package old Windows Receiver.'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath . -Force
+          $required = @(
+            'pc-installer/server.py',
+            'pc-installer/run_pc.py',
+            'pc-installer/requirements.txt',
+            'pc-installer/web/index.html',
+            'pc-installer/web/login.html',
+            'pc-installer/installer/ParcelGuard.iss',
+            'pc-installer/installer/preinstall-backup.ps1',
+            'pc-installer/tests/test_installer_backup.py'
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Incomplete PC Station source archive: $file"
+            }
+          }
+          if (-not (Select-String -LiteralPath 'pc-installer/server.py' -Pattern "APP_VERSION = '1.4.0'" -SimpleMatch -Quiet)) {
+            throw 'Wrong version of PC Station source; expected V1.4.0.'
+          }
+      - name: Fix Windows SQLite backup handles (validated patch)
+        shell: pwsh
+        run: |
+          python installer-ci/fix_windows_sqlite_locks.py
+          if ($LASTEXITCODE -ne 0) { throw 'SQLite lock patch failed' }
+      - name: Enable GitHub update manifest (Pilot, read-only)
+        shell: pwsh
+        run: |
+          python installer-ci/enable_github_update_checker.py
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub update checker patch failed' }
+      - name: Verify public GitHub pilot manifest is reachable
+        shell: pwsh
+        run: |
+          $url = 'https://raw.githubusercontent.com/paitoonsamba-hub/parcelguard-offline/feature/windows-installer-v1.4.0/updates/pc/pilot.json'
+          $manifest = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 20
+          if ($manifest.version -ne '1.4.0' -or $manifest.channel -ne 'pilot' -or $manifest.automaticInstall -ne $false) {
+            throw 'Public manifest is missing or invalid'
+          }
+          Write-Host 'Public Pilot version manifest responds correctly over HTTPS'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned build dependencies
+        shell: pwsh
+        working-directory: pc-installer
+        run: |
+          python -m pip install -r requirements.txt pyinstaller==6.16.0
+      - name: Run full regression tests
+        shell: pwsh
+        working-directory: pc-installer
+        run: |
+          python -m compileall -q .
+          python -m unittest discover -s tests -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
+      - name: Build standalone EXE (bundled Python)
+        shell: pwsh
+        working-directory: pc-installer
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --console --name ParcelGuardPC --add-data "web;web" run_pc.py
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
+          if (-not (Test-Path 'dist/ParcelGuardPC/ParcelGuardPC.exe')) { throw 'Missing app EXE' }
+      - name: Locate Inno Setup compiler (reuse installed version)
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Could not install Inno Setup' }
+          }
+          if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) { throw 'ISCC.exe missing' }
+          Write-Host 'Inno Setup compiler found at expected path'
+      - name: Compile setup EXE
+        shell: pwsh
+        working-directory: pc-installer
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' installer\ParcelGuard.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          $installer='output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe'
+          if (-not (Test-Path $installer)) { throw 'Installer EXE missing' }
+          Get-FileHash $installer -Algorithm SHA256 | Format-List
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParcelGuard-PC-Setup-V1.4.0-PILOT
+          path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
+          if-no-files-found: error
+          retention-days: 14
