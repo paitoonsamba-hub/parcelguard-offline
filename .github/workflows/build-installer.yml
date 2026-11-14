@@ -6,6 +6,8 @@ on:
       - feature/windows-installer-v1.4.0
     paths:
       - pc-installer-source-v140.zip
+      - updates/pc/pilot.json
+      - installer-ci/**
       - .github/workflows/build-installer.yml
 permissions:
   contents: read
@@ -45,6 +47,11 @@ jobs:
         run: |
           python installer-ci/fix_windows_sqlite_locks.py
           if ($LASTEXITCODE -ne 0) { throw 'SQLite lock patch failed' }
+      - name: Enable GitHub update manifest (Pilot, read-only)
+        shell: pwsh
+        run: |
+          python installer-ci/enable_github_update_checker.py
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub update checker patch failed' }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
