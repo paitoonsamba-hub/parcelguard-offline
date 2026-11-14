@@ -52,6 +52,15 @@ jobs:
         run: |
           python installer-ci/enable_github_update_checker.py
           if ($LASTEXITCODE -ne 0) { throw 'GitHub update checker patch failed' }
+      - name: Verify public GitHub pilot manifest is reachable
+        shell: pwsh
+        run: |
+          $url = 'https://raw.githubusercontent.com/paitoonsamba-hub/parcelguard-offline/feature/windows-installer-v1.4.0/updates/pc/pilot.json'
+          $manifest = Invoke-RestMethod -Uri $url -Method Get -TimeoutSec 20
+          if ($manifest.version -ne '1.4.0' -or $manifest.channel -ne 'pilot' -or $manifest.automaticInstall -ne $false) {
+            throw 'Public manifest is missing or invalid'
+          }
+          Write-Host 'Public Pilot version manifest responds correctly over HTTPS'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
