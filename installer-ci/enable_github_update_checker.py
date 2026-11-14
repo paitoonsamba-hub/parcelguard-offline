@@ -27,6 +27,12 @@ after_check = """                        latest=str(manifest.get('version',''))
 if original.count(before_check) != 1:
     raise RuntimeError("Unexpected manifest validation code: abort safely")
 updated = original.replace(before_url,after_url,1).replace(before_check,after_check,1)
+# raw.githubusercontent.com commonly returns application/octet-stream or text/plain
+# for JSON files. Validate the parsed JSON instead of requiring application/json.
+strict_content_type = "if response.status!=200 or response.headers.get_content_type()!='application/json':"
+if updated.count(strict_content_type) != 1:
+    raise RuntimeError("Unexpected response status check; abort")
+updated = updated.replace(strict_content_type, "if response.status!=200:", 1)
 server.write_text(updated,encoding="utf-8")
 
 test = Path("pc-installer/tests/test_installer_backup.py")
