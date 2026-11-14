@@ -40,6 +40,11 @@ jobs:
           if (-not (Select-String -LiteralPath 'pc-installer/server.py' -Pattern "APP_VERSION = '1.4.0'" -SimpleMatch -Quiet)) {
             throw 'Wrong version of PC Station source; expected V1.4.0.'
           }
+      - name: Fix Windows SQLite backup handles (validated patch)
+        shell: pwsh
+        run: |
+          python installer-ci/fix_windows_sqlite_locks.py
+          if ($LASTEXITCODE -ne 0) { throw 'SQLite lock patch failed' }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
