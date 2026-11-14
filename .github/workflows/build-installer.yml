@@ -1,0 +1,71 @@
+name: ParcelGuard PC Commercial V1.4.0 Installer (pilot)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/windows-installer-v1.4.0
+    paths:
+      - "pc-installer/**"
+      - ".github/workflows/build-installer.yml"
+permissions:
+  contents: read
+jobs:
+  installer:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate source and stop if PC Station isn't in this branch
+        shell: pwsh
+        run: |
+          $required = @(
+            'pc-installer/server.py',
+            'pc-installer/run_pc.py',
+            'pc-installer/web/index.html',
+            'pc-installer/web/login.html',
+            'pc-installer/installer/ParcelGuard.iss',
+            'pc-installer/installer/preinstall-backup.ps1',
+            'pc-installer/tests/test_installer_backup.py'
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Missing verified PC Station source: $file. Refusing to build an incomplete or older receiver." }
+          }
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        working-directory: pc-installer
+        shell: pwsh
+        run: |
+          python -m pip install -r requirements.txt pyinstaller==6.16.0
+      - name: Run Python tests
+        working-directory: pc-installer
+        shell: pwsh
+        run: |
+          python -m compileall -q .
+          python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Bundle standalone Windows app
+        working-directory: pc-installer
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --console --name ParcelGuardPC --add-data "web;web" run_pc.py
+          if (-not (Test-Path "dist/ParcelGuardPC/ParcelGuardPC.exe")) { throw "Missing bundled exe" }
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: choco install innosetup --version=6.4.3 --yes --no-progress
+      - name: Compile pilot installer
+        working-directory: pc-installer
+        shell: pwsh
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' installer\ParcelGuard.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = "output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe"
+          if (-not (Test-Path $setup)) { throw "Missing installer" }
+          Get-FileHash $setup -Algorithm SHA256 | Format-List
+      - name: Upload unsigned pilot installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ParcelGuard-PC-Setup-V1.4.0-PILOT
+          path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
+          if-no-files-found: error
+          retention-days: 14
