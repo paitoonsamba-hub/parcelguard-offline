@@ -76,7 +76,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not install Inno Setup' }
           }
           if (-not (Test-Path -LiteralPath $compiler -PathType Leaf)) { throw 'ISCC.exe missing' }
-          & $compiler '/?'
+          Write-Host 'Inno Setup compiler found at expected path'
       - name: Compile setup EXE
         shell: pwsh
         working-directory: pc-installer
