@@ -1,31 +1,20 @@
-# ParcelGuard PC V1.4.0 — Installer development branch
+# ParcelGuard PC V1.4.0 Installer — pilot handoff
 
-## Status
-- This is a **separate pilot branch**, based on `feature/commercial-security-v1.3.0`.
-- The build workflow is checked in at `.github/workflows/build-installer.yml`.
-- **Do not ship the build as-is**. The exact PC Station V1.4.0 source is in a previously generated ZIP, not yet in the GitHub repository.
-- CI deliberately fails if `pc-installer/server.py` and the original dashboard/backup/installer files are absent. It will **never silently package** the old `windows-receiver` prototype in place of the full PC Station application.
+## Current state (2026-11-14)
+- Original PC Station V1.4.0 archive inspected locally: 45 entries, 154,777 bytes, app version 1.4.0.
+- Local regression tests passed 26/26. These tests DO NOT replace a real Windows installation test.
+- Branch `feature/windows-installer-v1.4.0` is isolated from V1.2.9 Stable and V1.3.0 Commercial Pilot.
+- Workflow `.github/workflows/build-installer.yml` is configured to accept a **single ZIP** at repo root named `pc-installer-source-v140.zip` and extract it during Windows build.
+- Source archive has not yet been uploaded to the repository; current Actions failures are expected source-missing stops. There is NO distributable EXE yet.
 
-## Preservation
-- Do not merge into the stable branch until end-to-end validation.
-- Do not modify Firebase functions, entitlements, or `commercialPcSeats`.
-- The source installer is intended to install into `%LOCALAPPDATA%\\Programs\\ParcelGuard PC Commercial`.
-- Pilot user data stays in `%LOCALAPPDATA%\\ParcelGuardPC-Pilot-V130`; stable data in `%LOCALAPPDATA%\\ParcelGuardPC` must be left untouched.
-- Installer needs to stop when ports 8765/8766 are busy and create a verified backup of pilot data before changes.
+## One-file upload to unblock
+1. Download the original, verified PC Station source archive (not screenshots or a replacement receiver).
+2. On this branch, use Add file > Upload files and commit **one ZIP** named `pc-installer-source-v140.zip` at repository root.
+3. The Actions workflow starts automatically, runs source/version assertions and 26 tests, builds EXE with bundled Python via PyInstaller, creates Inno Setup and uploads an installer artifact.
 
-## Source required
-Extract the previously prepared file `ParcelGuard_PC_V1_4_0_Installer_Build_Package_PILOT.zip` into the repository root on this branch, preserving:
-- `pc-installer/server.py`, `pc-installer/run_pc.py`, `pc-installer/web/**`
-- `pc-installer/requirements.txt`
-- `pc-installer/installer/ParcelGuard.iss`
-- `pc-installer/installer/preinstall-backup.ps1`
-- `pc-installer/tests/**`
-
-Do not upload sample parcel evidence containing customer data or live credentials. When source is available, the workflow will run the Python tests, build a standalone EXE (bundling Python), package with Inno Setup on a Windows runner, and publish an **unsigned pilot** installer as a GitHub Actions artifact.
-
-## Release gates
-1. Verify installer on Windows 10/11 without Python installed.
-2. Ensure install/update/uninstall never modifies the stable data folder.
-3. Test SQLite + WAL backup and restore with realistic image/video volume.
-4. Confirm license/account check, USB barcode scanner, QR sync and A4 print.
-5. Sign the installer and scan it before distributing to paying customers.
+## Data preservation
+- Do not edit any V1.2.9 Stable directories or databases.
+- Pilot user data: `%LOCALAPPDATA%\\ParcelGuardPC-Pilot-V130`
+- Stable user data: `%LOCALAPPDATA%\\ParcelGuardPC`
+- Before install/update, installer invokes PowerShell preflight to check ports 8765/8766 and back up Pilot data to `%LOCALAPPDATA%\\ParcelGuardPC-Backups`. Backup must be checked on Windows.
+- Do not merge / release to customers without confirming Firebase Pro login, USB scan, QR sync, A4 print, installer signature, and update without data loss.
