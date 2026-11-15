@@ -13,7 +13,9 @@ const crypto=require("node:crypto");
 const records=new Map();
 let counter=0;
 const now=()=>({toMillis:()=>Date.now()});
-function clone(x){return structuredClone(x);}
+// Firestore emulator timestamp stubs contain toMillis methods and cannot be structuredCloned.
+// The fixture never mutates snapshot values; preserve their timestamp interface.
+function clone(x){return x;}
 class HttpsError extends Error{constructor(code,message){super(message);this.code=code;}}
 class Ref{
  constructor(collection,id){this.collection=collection;this.id=id;this.path=collection+"/"+id;}
