@@ -17,6 +17,7 @@
       <button class="nav-btn" data-view="keys"><span>⌑</span> จัดการ License</button>
       <button class="nav-btn" data-view="customers"><span>♙</span> บัญชีลูกค้า</button>
       <button class="nav-btn" data-view="payments"><span>฿</span> รับเงิน</button>
+      <button class="nav-btn" data-view="orders"><span>▤</span> คำสั่งซื้อ <small>V1.5</small></button>
       <button class="nav-btn" data-view="audit"><span>◷</span> ประวัติ Admin</button>
     </nav>
     <div class="sidebar-foot"><div class="dot"></div><span id="connection-label">ยังไม่เข้าสู่ระบบ</span></div>
@@ -67,6 +68,30 @@
           </form>
         </div>
         <div class="panel"><div class="panel-head"><div><h2>ประวัติรับเงินที่บันทึก</h2><p>เฉพาะ 50 รายการล่าสุด • เป็นข้อมูลที่เจ้าของยืนยัน ไม่ใช่ข้อมูลจากธนาคาร</p></div><button id="refresh-payments" class="secondary">รีเฟรช</button></div><div id="payments-table" class="table-wrap"></div></div>
+      </div>
+      <div id="orders-view" class="view hidden">
+        <div class="panel">
+          <div class="panel-head"><div><h2>คำสั่งซื้อ ParcelGuard</h2><p>บัญชีลูกค้า • แพ็กเกจ • สถานะการชำระเงิน (สูงสุด 50 รายการล่าสุด)</p></div><button id="refresh-orders" class="secondary" type="button">รีเฟรช Orders</button></div>
+          <div id="orders-table" class="table-wrap"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h2>ยืนยันรับเงินและออก License</h2>
+            <p>เลือกคำสั่งซื้อที่รอเงิน → ตรวจรายการเงินเข้าจริงในธนาคาร/PromptPay → ยืนยันออกคีย์หนึ่งดอก</p></div></div>
+          <form id="fulfill-order-form" class="issue-form">
+            <div><label for="order-to-fulfill">คำสั่งซื้อที่รอยืนยัน</label><select id="order-to-fulfill" required><option value="">— เลือกคำสั่งซื้อก่อน —</option></select></div>
+            <div><label for="order-amount">ยอดที่ต้องตรวจ (บาท)</label><input id="order-amount" readonly required/></div>
+            <div><label for="order-method">ช่องทางรับเงิน</label><select id="order-method"><option value="bank_transfer">ธนาคาร</option><option value="promptpay">PromptPay</option><option value="cash">เงินสด</option></select></div>
+            <div><label for="order-reference">เลขอ้างอิงธุรกรรมจริง ไม่ซ้ำ</label><input id="order-reference" minlength="6" maxlength="80" pattern="[A-Za-z0-9_./-]{6,80}" required placeholder="BANK-20261115-001"/></div>
+            <label class="check-row"><input id="order-manually-checked" type="checkbox" required/><span>ยืนยันว่าตรวจเงินเข้าจริงแล้ว และยอดตรงกับคำสั่งซื้อ — ไม่ใช่ดูเฉพาะภาพสลิป</span></label>
+            <button class="primary" id="fulfill-order-btn" type="submit">ตรวจรับเงินและออกคีย์ 1 ดอก</button>
+          </form>
+          <div class="issued-panel hidden" id="order-issued-panel" aria-live="polite">
+            <span>License Key (แสดงครั้งเดียว — ส่งทางช่องทางส่วนตัว)</span>
+            <div class="issued-line"><code id="order-issued-key"></code><button id="copy-order-key" class="secondary" type="button">คัดลอกคีย์</button></div>
+            <p>โปรดส่งคีย์และลิงก์ดาวน์โหลดให้ผู้ซื้อที่ยืนยันตัวตนแล้ว ระบบจะไม่ดึงคีย์กลับมาแสดงย้อนหลัง</p>
+            <button id="clear-order-key" type="button" class="text-btn">ซ่อนคีย์</button>
+          </div>
+        </div>
       </div>
       <div id="audit-view" class="view hidden">
         <div class="panel"><div class="panel-head"><div><h2>ประวัติ Admin</h2><p>บันทึกเหตุการณ์ออกคีย์ ยกเลิกคีย์ และบันทึกรายการรับเงิน (ล่าสุด 50 รายการ)</p></div><button id="refresh-audit" class="secondary">รีเฟรช</button></div><div id="audit-table" class="table-wrap"></div></div>
