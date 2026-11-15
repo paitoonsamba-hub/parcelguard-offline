@@ -1,0 +1,70 @@
+name: ParcelGuard Manual Sales Preview QA
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/manual-sales-launch-v1.5.0
+    paths:
+      - "manual-sales-web/**"
+      - ".github/workflows/test-manual-sales-v150.yml"
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify scripts and safety settings
+        run: |
+          node --check manual-sales-web/config.js
+          node --check manual-sales-web/app.js
+          node --input-type=module <<'NODE'
+          import {STORE} from "./manual-sales-web/config.js";
+          import assert from "node:assert/strict";
+          assert.equal(STORE.salesOpen,false);
+          assert.equal(STORE.supportUrl,null);
+          assert.equal(STORE.androidDownloadUrl,null);
+          assert.equal(STORE.windowsDownloadUrl,null);
+          console.log("Manual sales preview is closed until approved");
+          NODE
+      - name: Static content and link guards
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          root=Path("manual-sales-web")
+          files=[root/x for x in ("index.html","styles.css","app.js","config.js")]
+          assert all(f.is_file() and f.stat().st_size for f in files)
+          html=(root/"index.html").read_text(encoding="utf-8")
+          js=(root/"app.js").read_text(encoding="utf-8")
+          for phrase in ("Mobile","Pro","490","990","QR Sync","Admin"):
+              if phrase=="Admin":
+                  continue
+              assert phrase in html, phrase
+          assert 'type="file"' not in html
+          assert 'salesOpen' in js
+          assert not (root/"functions").exists()
+          class Tags(HTMLParser):
+              def __init__(self): super().__init__();self.ids=set()
+              def handle_starttag(self,tag,attrs):
+                  d=dict(attrs)
+                  if d.get('id'):
+                      assert d['id'] not in self.ids, "Duplicate id: "+d['id']
+                      self.ids.add(d['id'])
+          Tags().feed(html)
+          print("Manual launch page verified; no payment or slip collection")
+          PY
+      - name: Package standalone landing page preview
+        run: |
+          mkdir -p manual-sales-preview
+          cp -a manual-sales-web/. manual-sales-preview/
+          test ! -e manual-sales-preview/functions
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParcelGuard-Manual-Sales-V150-Preview
+          path: manual-sales-preview/
+          if-no-files-found: error
+          retention-days: 14
