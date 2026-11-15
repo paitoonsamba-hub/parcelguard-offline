@@ -1,0 +1,18 @@
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#0b131d;color:#eaf2f8}
+*{box-sizing:border-box}body{margin:0}.shell{max-width:960px;margin:0 auto;padding:24px 16px 70px}
+header{padding:24px 0}.brand{font-size:27px;font-weight:800;color:#f3f6fb}.brand span{color:#ff9b22}
+header p,footer,.foot{color:#91a7ba}.panel{background:#132230;border:1px solid #2c4456;border-radius:18px;padding:26px;margin:18px 0}
+h2{font-size:23px;margin:0 0 18px}h3{margin:23px 0 12px}label{display:block;margin:10px 0 16px;font-size:14px;font-weight:650}
+input:not([type=radio]):not([type=checkbox]),select{width:100%;margin-top:7px;border:1px solid #436078;background:#0d1a26;border-radius:9px;padding:12px;color:#fff;font:inherit}
+button{border:0;border-radius:9px;padding:12px 18px;background:#ff991a;color:#1a1b1c;font-weight:800;cursor:pointer}
+button:hover{filter:brightness(1.1)}button:disabled{opacity:.55;cursor:wait}
+.secondary{background:#21384a;color:#f4f6fb;border:1px solid #466076}
+.actions,.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.bar{justify-content:space-between}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.plans label{border:1px solid #476074;border-radius:12px;padding:18px;cursor:pointer;font-size:17px}
+.plans b{float:right;color:#ffad3d}.plans small{display:block;margin-top:8px;color:#a4b6c7}
+.notice{background:#1d2e39;padding:14px 16px;border-left:3px solid #ff991a;line-height:1.6}
+.order{margin:12px 0;padding:14px;border:1px solid #3c5566;border-radius:12px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;overflow-wrap:anywhere}
+.hidden{display:none!important}#flash{padding:10px 0;color:#99edc8;overflow-wrap:anywhere}#flash.error{color:#ff7b7b}
+.result{background:#20382c;border:1px solid #3c765a;padding:18px;border-radius:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:20px;color:#ffbe59}
+footer{font-size:12px;margin-top:35px}.check{display:flex;align-items:center;gap:10px}
