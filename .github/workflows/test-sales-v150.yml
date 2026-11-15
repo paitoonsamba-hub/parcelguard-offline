@@ -6,6 +6,7 @@ on:
     paths:
       - "functions/sales-*.js"
       - "functions/test/sales-model.test.js"
+      - "functions/test/sales-callables.test.js"
       - "functions/index.js"
       - "sales-web/**"
       - "admin-web/**"
@@ -28,7 +29,7 @@ jobs:
           node --check sales-web/app.js
           node --check admin-web/app.js
       - name: Sales unit tests
-        run: node --test functions/test/sales-model.test.js
+        run: node --test functions/test/sales-model.test.js functions/test/sales-callables.test.js
       - name: Keep public portal isolated and prevent slip upload
         run: |
           python - <<'PY'
