@@ -58,6 +58,45 @@
     });
   }
 
+  // Manual Sales option A — no payment on site. Only open a verified support
+  // channel after the owner has explicitly configured it and enabled sales.
+  // This does not alter the existing 7-day trial modal.
+  const SALES_OPEN = false;
+  const VERIFIED_SUPPORT_URL = "";
+  const manualStatus = document.getElementById("manualOrderStatus");
+  if (manualStatus) {
+    manualStatus.textContent = SALES_OPEN && VERIFIED_SUPPORT_URL
+      ? "ติดต่อร้านเพื่อสอบถามและขอรายละเอียดชำระเงินที่ยืนยันแล้ว"
+      : "กำลังเตรียมเปิดขาย ยังไม่มีการรับชำระเงินหรือส่งไฟล์ติดตั้งผ่านหน้านี้";
+  }
+  document.querySelectorAll("[data-manual-plan]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const plan = button.dataset.manualPlan;
+      const price = button.dataset.manualPrice;
+      const message = "สวัสดีครับ สนใจ ParcelGuard " + plan + " ราคา ฿" + price +
+        "\\nขอสอบถามรายละเอียดการติดตั้ง เงื่อนไข License และช่องทางสั่งซื้อที่ยืนยันแล้วครับ";
+      if (!SALES_OPEN || !VERIFIED_SUPPORT_URL) {
+        try {
+          await navigator.clipboard.writeText(message);
+          if (manualStatus) manualStatus.textContent =
+            "คัดลอกข้อความสอบถามแล้ว • ยังไม่เปิดขาย กรุณารอประกาศช่องทางติดต่อร้าน";
+        } catch (_) {
+          if (manualStatus) manualStatus.textContent =
+            "ยังไม่เปิดขายและยังไม่ได้ประกาศช่องทางติดต่อร้าน";
+        }
+        return;
+      }
+      try {
+        const url = new URL(VERIFIED_SUPPORT_URL);
+        if (url.protocol !== "https:") throw Error("Invalid support URL");
+        await navigator.clipboard.writeText(message).catch(() => {});
+        window.open(url.href, "_blank", "noopener,noreferrer");
+      } catch (_) {
+        if (manualStatus) manualStatus.textContent = "กรุณาตรวจช่องทางติดต่อจากร้านอีกครั้ง";
+      }
+    });
+  });
+
   // Replace the honest pre-launch placeholder with a real local MP4 only
   // once that file is supplied. No external player and no autoplay.
   if (DEMO_VIDEO_URL && demoVideo) {
