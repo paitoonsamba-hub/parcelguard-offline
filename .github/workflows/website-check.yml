@@ -1,7 +1,7 @@
 name: ParcelGuard Website Static Check
 on:
   push:
-    branches: [parcelguard-website]
+    branches: [parcelguard-website, feature/website-manual-sales-original-v1.5]
   workflow_dispatch:
 jobs:
   verify-static-site:
