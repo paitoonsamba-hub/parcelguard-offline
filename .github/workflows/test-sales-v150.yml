@@ -1,0 +1,67 @@
+name: ParcelGuard V1.5 Sales Security Checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sales-fulfillment-v1.5.0]
+    paths:
+      - "functions/sales-*.js"
+      - "functions/test/sales-model.test.js"
+      - "functions/test/sales-callables.test.js"
+      - "functions/index.js"
+      - "sales-web/**"
+      - "admin-web/**"
+      - ".github/workflows/test-sales-v150.yml"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static syntax checks
+        run: |
+          node --check functions/sales-model.js
+          node --check functions/sales-functions.js
+          node --check functions/index.js
+          node --check sales-web/app.js
+          node --check admin-web/app.js
+      - name: Sales unit tests
+        run: node --test functions/test/sales-model.test.js functions/test/sales-callables.test.js
+      - name: Keep public portal isolated and prevent slip upload
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          h=Path('sales-web/index.html').read_text()
+          a=Path('admin-web/index.html').read_text()
+          s=Path('functions/sales-functions.js').read_text()
+          assert '<input type="file"' not in h
+          assert 'order-manually-checked' in a and 'manuallyChecked' in s
+          assert 'salesAdminFulfillOrder' in s and 'requireOwner(req)' in s
+          assert 'tx.create(keyRef' in s and 'tx.update(orderRef' in s
+          assert 'id="orders-view"' in a
+          assert 'data-view="orders"' in a
+          assert 'salesAdminFulfillOrder' in Path('admin-web/app.js').read_text()
+          assert not Path('sales-web/admin.html').exists()
+          assert "receipt" not in h.lower()
+          print('Sales pilot static guards passed')
+          PY
+      - name: Package buyer preview without Firebase Cloud Functions
+        run: |
+          test -f sales-web/index.html
+          test -f sales-web/app.js
+          test -f sales-web/styles.css
+          test -f sales-web/firebase-config.js
+          test ! -e sales-web/functions
+          mkdir -p preview
+          cp -R sales-web/. preview/
+          test ! -e preview/functions
+          echo "Safe static buyer preview ready (not deployed)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParcelGuard-Sales-V150-Static-Preview
+          path: preview/
+          retention-days: 7
+          if-no-files-found: error

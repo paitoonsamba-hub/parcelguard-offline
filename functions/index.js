@@ -81,3 +81,6 @@ Object.assign(exports, require("./admin-functions"));
 // Commercial PC pilot; NOT DEPLOYED until Windows integration is field-tested.
 const {commercialCheckPc,adminReleasePcSeat}=require("./commercial-security");
 Object.assign(exports,{commercialCheckPc,adminReleasePcSeat});
+
+// V1.5 Pilot sales endpoints. Deploy only after owner approval and integration tests.
+Object.assign(exports,require("./sales-functions"));

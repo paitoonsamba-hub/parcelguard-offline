@@ -17,7 +17,7 @@ const el=(tag,cls="",txt=null)=>{
 };
 const date=v=>v?new Date(v).toLocaleString("th-TH",{dateStyle:"short",timeStyle:"short"}):"—";
 const short=v=>v?v.slice(0,10)+"…"+v.slice(-5):"—";
-const state={keys:[],customers:[],payments:[],audit:[],authorized:false,busy:false};
+const state={keys:[],customers:[],payments:[],audit:[],orders:[],authorized:false,busy:false};
 let flashTimer;
 function flash(message,error=false) {
   const node=$("flash");
@@ -43,10 +43,10 @@ function authView(authorized){
   $("connection-label").textContent=authorized?"Owner authenticated":"ต้องยืนยันสิทธิ์ Owner";
 }
 function setView(view){
-  for(const id of ["overview","keys","customers","payments","audit"]){
+  for(const id of ["overview","keys","customers","payments","orders","audit"]){
     $(id+"-view").classList.toggle("hidden",id!==view);
   }
-  const titles={overview:"ภาพรวม",keys:"จัดการ License",customers:"บัญชีลูกค้า",payments:"บันทึกการรับเงิน",audit:"ประวัติ Admin"};
+  const titles={overview:"ภาพรวม",keys:"จัดการ License",customers:"บัญชีลูกค้า",payments:"บันทึกการรับเงิน",orders:"คำสั่งซื้อ",audit:"ประวัติ Admin"};
   $("page-title").textContent=titles[view]||titles.overview;
   document.querySelectorAll("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
 }
@@ -96,7 +96,7 @@ $("logout-btn").addEventListener("click",async ()=>{
   $("issued-key").textContent="";
   $("issued-panel").classList.add("hidden");
   state.keys=[];
-  state.customers=[]; state.payments=[]; state.audit=[];
+  state.customers=[]; state.payments=[]; state.audit=[];state.orders=[];
   $("revoke-form").classList.add("hidden");
   $("searched-key").replaceChildren();$("searched-customer").replaceChildren();
   await signOut(auth);
@@ -211,7 +211,7 @@ async function loadAudit(){
   renderAudit();
 }
 async function loadAll(){
-  try{await Promise.all([loadKeys(),loadCustomers(),loadPayments(),loadAudit()]);}
+  try{await Promise.all([loadKeys(),loadCustomers(),loadPayments(),loadAudit(),loadOrders()]);}
   catch(e){flash("โหลดข้อมูลไม่สำเร็จ: "+err(e),true);}
 }
 async function refresh(method){
@@ -222,6 +222,7 @@ $("refresh-overview").addEventListener("click",()=>refresh(loadAll));
 $("refresh-keys").addEventListener("click",()=>refresh(loadKeys));
 $("refresh-customers").addEventListener("click",()=>refresh(loadCustomers));
 $("refresh-payments").addEventListener("click",()=>refresh(loadPayments));
+$("refresh-orders").addEventListener("click",()=>refresh(loadOrders));
 $("refresh-audit").addEventListener("click",()=>refresh(loadAudit));
 $("plan").addEventListener("change",updatePaymentDropdown);
 $("payment-plan").addEventListener("change",()=>{$("payment-amount").value=$("payment-plan").value==="pro"?"990":"490";});
@@ -336,4 +337,72 @@ $("copy-key").addEventListener("click",async()=>{
 $("clear-key").addEventListener("click",()=>{
   $("issued-key").textContent="";
   $("issued-panel").classList.add("hidden");
+});
+
+
+function renderOrders(){
+  const items=state.orders;
+  table("orders-table",["Order ID","ลูกค้า","แพ็กเกจ","ยอด","สถานะ","สร้างเมื่อ"],
+    items.map(o=>[cell(o.id,"mono"),cell(o.customerEmail||o.customerUid),
+      cell(o.plan==="pro"?"Pro":"Mobile"),cell("฿"+o.amountThb),
+      {pill:true,text:o.status==="fulfilled"?"ออกคีย์แล้ว":"รอชำระ",color:o.status==="fulfilled"?"gray":"amber"},
+      cell(date(o.createdAt))]));
+  const selector=$("order-to-fulfill"),selected=selector.value;
+  selector.replaceChildren(new Option("— เลือกคำสั่งซื้อที่ยังไม่ออกคีย์ —",""));
+  for(const o of items.filter(x=>x.status==="pending_payment")){
+    selector.add(new Option(o.id+" • "+(o.plan==="pro"?"Pro":"Mobile")+" • ฿"+o.amountThb,o.id));
+  }
+  if([...selector.options].some(x=>x.value===selected))selector.value=selected;
+  updateOrderAmount();
+}
+function updateOrderAmount(){
+ const selected=state.orders.find(o=>o.id===$("order-to-fulfill").value && o.status==="pending_payment");
+ $("order-amount").value=selected?String(selected.amountThb):"";
+}
+async function loadOrders(){
+  const result=await call("salesAdminListOrders")({});
+  state.orders=result.data.items||[];
+  renderOrders();
+}
+$("order-to-fulfill").addEventListener("change",updateOrderAmount);
+$("fulfill-order-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(state.busy)return;
+  const order=state.orders.find(o=>o.id===$("order-to-fulfill").value&&o.status==="pending_payment");
+  if(!order){flash("เลือกคำสั่งซื้อที่รอชำระก่อน",true);return;}
+  if(!$("order-manually-checked").checked){flash("ต้องตรวจรายการเงินเข้าจริงก่อน",true);return;}
+  const reference=$("order-reference").value.trim().toUpperCase();
+  if(!confirm("ตรวจพบเงินจริง ฿"+order.amountThb+" สำหรับ Order "+order.id+" แล้ว และยืนยันออก License เพียง 1 ดอก?"))return;
+  const btn=$("fulfill-order-btn");
+  state.busy=true;btn.disabled=true;
+  // Never retain an earlier key after starting a new transaction.
+  $("order-issued-key").textContent="";
+  $("order-issued-panel").classList.add("hidden");
+  try {
+    const res=await call("salesAdminFulfillOrder")({
+      orderId:order.id,amountThb:order.amountThb,method:$("order-method").value,
+      reference,manuallyChecked:true
+    });
+    const key=res.data.key;
+    if(!/^PG-[A-F0-9]{32}$/.test(key))throw Error("เซิร์ฟเวอร์ไม่ส่งคีย์ตามรูปแบบที่ถูกต้อง");
+    $("order-issued-key").textContent=key;
+    $("order-issued-panel").classList.remove("hidden");
+    $("order-manually-checked").checked=false;
+    $("order-reference").value="";
+    flash("ออกคีย์สำเร็จ คัดลอกและส่งให้ลูกค้าเดี๋ยวนี้ (ระบบไม่เก็บคีย์ข้อความจริง)");
+    // Refresh failure must never erase the newly issued one-time key.
+    try{await Promise.all([loadOrders(),loadPayments(),loadKeys(),loadAudit()]);}
+    catch(refreshError){flash("ออกคีย์สำเร็จ แต่รีเฟรชรายการไม่ได้: "+err(refreshError),true);}
+  }catch(e){flash("ออกคีย์ไม่สำเร็จ: "+err(e),true);}
+  finally{state.busy=false;btn.disabled=false;}
+});
+$("copy-order-key").addEventListener("click",async()=>{
+ const key=$("order-issued-key").textContent;
+ if(!key)return;
+ try{await navigator.clipboard.writeText(key);flash("คัดลอกคีย์แล้ว — ส่งให้ลูกค้าผ่านช่องทางที่ยืนยันผู้รับ");}
+ catch(e){flash("คัดลอกอัตโนมัติไม่ได้ โปรดคัดลอกข้อความด้วยตัวเอง",true);}
+});
+$("clear-order-key").addEventListener("click",()=>{
+ $("order-issued-key").textContent="";
+ $("order-issued-panel").classList.add("hidden");
 });
