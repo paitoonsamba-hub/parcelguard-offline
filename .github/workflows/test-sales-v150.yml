@@ -1,0 +1,44 @@
+name: ParcelGuard V1.5 Sales Security Checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sales-fulfillment-v1.5.0]
+    paths:
+      - "functions/sales-*.js"
+      - "functions/test/sales-model.test.js"
+      - "functions/index.js"
+      - "sales-web/**"
+      - ".github/workflows/test-sales-v150.yml"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static syntax checks
+        run: |
+          node --check functions/sales-model.js
+          node --check functions/sales-functions.js
+          node --check functions/index.js
+          node --check sales-web/app.js
+          node --check sales-web/admin.js
+      - name: Sales unit tests
+        run: node --test functions/test/sales-model.test.js
+      - name: Keep public portal isolated and prevent slip upload
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          h=Path('sales-web/index.html').read_text()
+          a=Path('sales-web/admin.html').read_text()
+          s=Path('functions/sales-functions.js').read_text()
+          assert '<input type="file"' not in h
+          assert 'manuallyChecked' in a and 'manuallyChecked' in s or 'checked' in a and 'manuallyChecked' in s
+          assert 'salesAdminFulfillOrder' in s and 'requireOwner(req)' in s
+          assert 'tx.create(keyRef' in s and 'tx.update(orderRef' in s
+          assert "receipt" not in h.lower()
+          print('Sales pilot static guards passed')
+          PY
