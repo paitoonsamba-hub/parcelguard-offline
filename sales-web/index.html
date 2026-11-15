@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ParcelGuard — สั่งซื้อ Pilot</title><link rel="stylesheet" href="./styles.css"></head>
+<body><main class="shell">
+<header><div class="brand">▣ Parcel<span>Guard</span></div><p>สั่งซื้อแบบมีผู้ดูแลตรวจยอดจริง • V1.5.0 Pilot</p></header>
+<section class="panel" id="auth-panel"><h2>เข้าสู่ระบบลูกค้า</h2>
+<p>ใช้ Firebase Email/Password เดียวกับ ParcelGuard Android</p>
+<form id="login-form"><label>อีเมล<input type="email" id="email" required autocomplete="username"></label>
+<label>รหัสผ่าน<input type="password" id="password" required autocomplete="current-password"></label>
+<button type="submit">เข้าสู่ระบบ</button></form>
+<div class="actions"><button id="signup" type="button" class="secondary">สมัครบัญชีใหม่</button>
+<button id="verify" type="button" class="secondary">ส่งอีเมลยืนยัน</button>
+<button id="refresh" type="button" class="secondary">ตรวจสอบการยืนยัน</button></div></section>
+<section class="panel hidden" id="order-panel">
+<div class="bar"><strong id="account"></strong><button id="logout" class="secondary">ออกจากระบบ</button></div>
+<h2>เลือกแพ็กเกจซื้อขาด</h2>
+<div class="plans"><label><input type="radio" name="plan" value="android" checked> Mobile <b>฿490</b><small>Android</small></label>
+<label><input type="radio" name="plan" value="pro"> Pro <b>฿990</b><small>Android + Windows PC</small></label></div>
+<p class="notice">ระบบนี้ยังไม่รับชำระเงินออนไลน์ อย่าโอนเงินจนกว่าจะได้รับรายละเอียดรับเงินจากช่องทางผู้ขายที่ตรวจสอบแล้ว และอย่าส่งสลิป/ข้อมูลบัญชีลงหน้าเว็บสาธารณะ</p>
+<button id="create-order">สร้างคำสั่งซื้อ</button>
+<h3>คำสั่งซื้อของฉัน</h3><button class="secondary" id="reload-orders">รีเฟรชสถานะ</button><div id="orders"></div>
+<p class="foot">เมื่อผู้ดูแลตรวจยอดเงินจริงแล้ว จะส่ง License Key และลิงก์ดาวน์โหลดผ่านช่องทางที่ตกลงกันไว้ (ยังไม่มีระบบส่งอีเมลอัตโนมัติ)</p>
+</section>
+<div id="flash" role="status" aria-live="polite"></div>
+<footer>ParcelGuard V1.5.0 Pilot — ไม่ใช่หน้ารับชำระเงินจริงแบบอัตโนมัติ</footer>
+</main><script type="module" src="./app.js"></script></body></html>
