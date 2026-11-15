@@ -1,7 +1,7 @@
 import {initializeApp} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-functions.js";
-import {firebaseConfig} from "../admin-web/firebase-config.js";
+import {firebaseConfig} from "./firebase-config.js";
 const app=initializeApp(firebaseConfig),auth=getAuth(app),fn=getFunctions(app,"asia-southeast1");
 const $=id=>document.getElementById(id);
 const call=(name,data={})=>httpsCallable(fn,name)(data).then(r=>r.data);
