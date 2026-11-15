@@ -47,3 +47,20 @@ jobs:
           assert "receipt" not in h.lower()
           print('Sales pilot static guards passed')
           PY
+      - name: Package buyer preview without Firebase Cloud Functions
+        run: |
+          test -f sales-web/index.html
+          test -f sales-web/app.js
+          test -f sales-web/styles.css
+          test -f sales-web/firebase-config.js
+          test ! -e sales-web/functions
+          mkdir -p preview
+          cp -R sales-web/. preview/
+          test ! -e preview/functions
+          echo "Safe static buyer preview ready (not deployed)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParcelGuard-Sales-V150-Static-Preview
+          path: preview/
+          retention-days: 7
+          if-no-files-found: error
