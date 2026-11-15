@@ -21,7 +21,7 @@
 ## Flow — pilot only
 - Buyer opens `sales-web/index.html`, signs up/signs in, confirms email, chooses 490 or 990, and creates an order.
 - Buyer contacts seller on an authenticated private channel to receive payment instructions. Pilot UI must not accept slips or expose bank credentials.
-- Owner opens `sales-web/admin.html`, logs in using verified Firebase owner account, sees orders, verifies funds directly in bank, then confirms exact reference and amount.
+- Owner opens the existing `admin-web/index.html` and selects the Orders tab, logs in using verified Firebase owner account, sees orders, verifies funds directly in bank, then confirms exact reference and amount.
 - Owner copies the one-time key from the confirmation response and sends it privately to verified customer along with a tested, official installation link.
 - Buyer redeems key using the existing ParcelGuard Android application; Pro PC sign-in uses the same account.
 - Buyer status shows order fulfilled but **does not expose raw key**. If owner loses one-time key, there is no reset/reissue flow yet. Do NOT sell before a supported recovery policy is built.
@@ -39,3 +39,9 @@
 4. Privacy disclosure, terms of lifetime license, 1-PC binding, returns and support channel.
 5. Controlled staged deploy; verify owner dashboard and existing Android and Windows license access remain unaffected.
 6. Beta test with 5–10 shops before promoting to retail.
+
+## V1.5 corrective change
+- Eliminated duplicate `sales-web/admin.html` and `sales-web/admin.js`.
+- Added Orders tab and one-time fulfillment form to the EXISTING Firebase Owner Admin Dashboard (`admin-web/index.html`, `admin-web/app.js`).
+- The failure of the *existing* Cloudflare Pages project comes from its repository-root `functions/` (Firebase functions) being misinterpreted as Pages Functions. Do NOT rename Firebase functions. Build the buyer preview using a SEPARATE Cloudflare Pages project with Root directory `sales-web`, output directory `.`. GitHub code alone cannot change the existing Cloudflare project's root-directory setting.
+- CI tests syntax and integrated Orders UI. Cloudflare check remains independent and may remain failed until a Pages project is configured correctly.
