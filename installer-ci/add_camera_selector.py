@@ -66,7 +66,7 @@ async function openScannerCamera(){
   cameraStatus('เบราว์เซอร์ไม่รองรับการเปิดกล้อง');return;
  }
  const selected=$('scan-camera-select').value||cameraPrefGet();
- const video={width:{ideal:1280},height:{ideal:720}};
+ const video={width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}};
  if(selected)video.deviceId={exact:selected};
  try{
   // Acquire the selected device before stopping the working stream. If this
@@ -77,6 +77,16 @@ async function openScannerCamera(){
   $('scan-preview').srcObject=next;
   if(previous)previous.getTracks().forEach(t=>t.stop());
   const track=next.getVideoTracks()[0], actual=track&&track.getSettings().deviceId||'';
+  // Request continuous autofocus only if this webcam/driver advertises support.
+  // The video stream stays usable if the optional constraint is rejected.
+  if(track && track.getCapabilities && track.applyConstraints){
+   try{
+    const caps=track.getCapabilities();
+    if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous')){
+     await track.applyConstraints({advanced:[{focusMode:'continuous'}]});
+    }
+   }catch(_){ /* Unsupported focus controls must never break scanning */ }
+  }
   cameraPrefSet(actual||selected);
   await refreshScannerCameraList(actual||selected);
   cameraStatus('กล้องที่กำลังใช้งาน: '+(track&&track.label||'กล้องเริ่มต้นของระบบ'));
