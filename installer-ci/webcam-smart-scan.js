@@ -34,11 +34,13 @@
         }
       } catch (_) {}
     }
-    if (engine === 'none' && typeof ZXingBrowser !== 'undefined' &&
+    // Keep ZXing available even when native detection exists: USB webcam
+    // frames may decode in one engine but not the other.
+    if (typeof ZXingBrowser !== 'undefined' &&
         typeof ZXingBrowser.BrowserMultiFormatReader === 'function') {
       try {
         zxing = new ZXingBrowser.BrowserMultiFormatReader();
-        engine = 'zxing';
+        if (engine === 'none') engine = 'zxing';
       } catch (_) {}
     }
     if (engine === 'none') status('เครื่องนี้ยังไม่มีตัวถอดรหัสบาร์โค้ดที่รองรับ กรุณาใช้เครื่องสแกน USB');
@@ -47,9 +49,12 @@
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   async function decodeFrame() {
+    let codes=[];
     if (detector) {
-      const codes = await detector.detect(preview);
-      return codes.map(c => ({raw:c.rawValue, format:c.format}));
+      try {
+        codes=(await detector.detect(preview)).map(c=>({raw:c.rawValue,format:c.format}));
+      } catch (_) { /* Try bundled ZXing below */ }
+      if (codes.length) return codes;
     }
     if (zxing && ctx) {
       canvas.width = preview.videoWidth;
@@ -57,10 +62,21 @@
       ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
       try {
         const found = zxing.decodeFromCanvas(canvas);
-        return found ? [{raw:found.getText(),format:''}] : [];
-      } catch (_) { return []; } // No symbol in this frame is expected.
+        if(found) return [{raw:found.getText(),format:''}];
+      } catch (_) { /* No symbol in this frame is expected */ }
+      // Try a central crop for narrow shipping-label Code128 bars.
+      const w=canvas.width,h=canvas.height;
+      if(w>640 && h>400){
+        const x=Math.floor(w*.10),y=Math.floor(h*.13),cw=Math.floor(w*.8),ch=Math.floor(h*.74);
+        const crop=document.createElement('canvas');crop.width=cw;crop.height=ch;
+        crop.getContext('2d').drawImage(canvas,x,y,cw,ch,0,0,cw,ch);
+        try {
+          const found=zxing.decodeFromCanvas(crop);
+          if(found)return [{raw:found.getText(),format:''}];
+        } catch (_) {}
+      }
     }
-    return [];
+    return codes;
   }
   function onCapture(s) {
     const now = Date.now();
