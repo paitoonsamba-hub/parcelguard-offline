@@ -134,8 +134,26 @@ public class LicenseActivity extends AppCompatActivity {
                     showMessage(t.isSuccessful()?"ส่งอีเมลรีเซ็ตรหัสผ่านแล้ว":"ส่งอีเมลไม่สำเร็จ"));
             });
         }
+        TextView helpTitle = label("ติดต่อฝ่ายช่วยเหลือ • TARONIX 208", 15);
+        helpTitle.setTextColor(ORANGE);
+        layout.addView(helpTitle);
+        action("💬 ติดต่อพนักงานผ่าน LINE OA", this::openLineSupport);
+        layout.addView(label("LINE OA: https://lin.ee/wEsjx0X\\nกรุณาอย่าส่งรหัสผ่านหรือ License Key เต็มผ่านแชต", 12));
         setContentView(sc);
     }
+    private void openLineSupport() {
+        final String supportUrl = "https://lin.ee/wEsjx0X";
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(supportUrl))
+                .addCategory(Intent.CATEGORY_BROWSABLE));
+        } catch (android.content.ActivityNotFoundException ex) {
+            ((android.content.ClipboardManager)getSystemService(android.content.Context.CLIPBOARD_SERVICE))
+                .setPrimaryClip(android.content.ClipData.newPlainText("ParcelGuard LINE OA", supportUrl));
+            android.widget.Toast.makeText(this,
+                "ไม่พบแอปสำหรับเปิดลิงก์ • คัดลอก LINE OA แล้ว", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void checkAccess() {
         if (auth.getCurrentUser()==null) {draw();return;}
         busy(true);
