@@ -7,6 +7,7 @@ on:
       - feature/pc-line-support-v1.4.1-pilot
       - feature/pc-camera-selector-v1.4.0-qa
       - feature/pc-webcam-smart-barcode-qa
+      - fix/pc-spx-focus-and-bag-flow-qa
     paths:
       - pc-installer-source-v140.zip
       - updates/pc/pilot.json
@@ -80,6 +81,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Webcam scanner idempotence failed' }
           node --check pc-installer/web/app.js
           if ($LASTEXITCODE -ne 0) { throw 'Barcode scanner JavaScript syntax failed' }
+      - name: Add guarded PC bag open-close workflow
+        shell: pwsh
+        run: |
+          python installer-ci/add_bag_lifecycle.py
+          if ($LASTEXITCODE -ne 0) { throw 'Bag workflow patch failed' }
+          python installer-ci/add_bag_lifecycle.py
+          if ($LASTEXITCODE -ne 0) { throw 'Bag workflow idempotence failed' }
+          node --check pc-installer/web/app.js
+          if ($LASTEXITCODE -ne 0) { throw 'PC bag JavaScript syntax failed' }
       - name: Fix Windows SQLite backup handles (validated patch)
         shell: pwsh
         run: |
@@ -142,7 +152,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
-          name: ParcelGuard-PC-Setup-V1.4.0-WEBCAM-SCAN-QA
+          name: ParcelGuard-PC-Setup-V1.4.0-SPX-BAG-QA
           path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
           if-no-files-found: error
           retention-days: 14
