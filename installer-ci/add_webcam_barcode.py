@@ -44,7 +44,9 @@ assert "savePcScan()" in js, "Original scan save function unavailable"
 assert "scannerStream" in js and "scannerBusy" in js
 # Browser bundle is appended after the original application code and before
 # our own scanner so it sees the existing globals and stays same-origin.
-js+="\n;\n"+vendor.read_text(encoding="utf-8")+"\n;\n"+base+"\n"
+selector=(Path("installer-ci/android-tracking-selector.js")).read_text(encoding="utf-8")
+assert "ParcelTrackingSelector" in selector
+js+="\\n;\\n"+vendor.read_text(encoding="utf-8")+"\\n;\\n"+selector+"\\n;\\n"+base+"\\n"
 assert js.count("Smart Webcam Barcode QA")==1
 page.write_text(html,encoding="utf-8")
 script.write_text(js,encoding="utf-8")
