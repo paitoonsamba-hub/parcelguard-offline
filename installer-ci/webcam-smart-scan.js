@@ -17,17 +17,10 @@
   let lastWarn = '';
   function status(s) { if (scanStatus) scanStatus.textContent = s; }
   function normalize(raw) { return String(raw || '').trim().replace(/\s+/g, '').toUpperCase(); }
-  function candidate(raw, format) {
-    const s = normalize(raw);
-    // Fails closed on empty/short warehouse sorting barcodes and URLs.
-    // Format-specific carrier validation will be expanded using real labels.
-    if (!/^[A-Z0-9-]{12,35}$/.test(s)) return '';
-    if (/^(HTTP|WWW|BAG-|SORT|ZONE|BIN-)/.test(s)) return '';
-    const carrier = $scan('scan-carrier')?.value || '';
-    // LEX commonly uses 15-character tracking IDs in this application.
-    if (/LEX/i.test(carrier) && s.length !== 15) return '';
-    if (format && /^(qr_code|data_matrix|aztec)$/i.test(format) && s.length < 15) return '';
-    return s;
+  let framesChecked=0, emptyFrames=0;
+  function readDecision(items){
+    const carrier=$scan('scan-carrier')?.value || '';
+    return ParcelTrackingSelector.choose(items.map(c=>c.raw),carrier);
   }
   async function initEngine() {
     if (typeof BarcodeDetector === 'function') {
@@ -104,16 +97,25 @@
     last.busy = true;
     try {
       const items = await decodeFrame();
-      const matches = [...new Set(items.map(c => candidate(c.raw,c.format)).filter(Boolean))];
-      if (matches.length === 1) {
-        const value = matches[0];
+      framesChecked++;
+      const decision = readDecision(items);
+      const value = decision.autoTracking;
+      const carrier = $scan('scan-carrier')?.value || '';
+      if (value) {
+        emptyFrames = 0;
         last.hits = (last.value === value) ? last.hits+1 : 1;
         last.value = value;
-        if (last.hits >= 3) onCapture(value);
+        const needed = ParcelTrackingSelector.fastVerifiedLexFlash(value,carrier)?1:2;
+        if (last.hits >= needed) onCapture(value);
+        else status('อ่านบาร์โค้ดได้ • กำลังยืนยันรหัส '+value);
       } else {
         last.hits = 0;
         last.value = '';
-        if (matches.length>1) status('พบหลายบาร์โค้ด • กรุณาจัดให้ Tracking ที่ต้องการอยู่กลางกล้องเพียงรหัสเดียว');
+        if (decision.message) status(decision.message+
+            (decision.reviewOptions.length?' • '+decision.reviewOptions.join(' / '):''));
+        else if (items.length) status('อ่านบาร์โค้ดได้ แต่ไม่พบ Tracking ที่ยืนยันได้ • ตรวจขนส่ง');
+        else if (++emptyFrames % 18 === 0) status('กล้องเปิดอยู่ แต่ยังถอดรหัสบาร์โค้ดไม่ได้ • '+engine+
+            ' • ตรวจความคม/ระยะ/แสง ('+framesChecked+' เฟรม)');
       }
     } catch (e) {
       if (lastWarn !== e.name) {
