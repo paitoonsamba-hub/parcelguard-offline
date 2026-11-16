@@ -138,7 +138,8 @@ public class LicenseActivity extends AppCompatActivity {
         helpTitle.setTextColor(ORANGE);
         layout.addView(helpTitle);
         action("💬 ติดต่อพนักงานผ่าน LINE OA", this::openLineSupport);
-        layout.addView(label("LINE OA: https://lin.ee/wEsjx0X\\nกรุณาอย่าส่งรหัสผ่านหรือ License Key เต็มผ่านแชต", 12));
+        layout.addView(label("LINE OA: https://lin.ee/wEsjx0X", 12));
+        layout.addView(label("กรุณาอย่าส่งรหัสผ่านหรือ License Key เต็มผ่านแชต", 12));
         setContentView(sc);
     }
     private void openLineSupport() {
