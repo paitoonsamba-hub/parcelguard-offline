@@ -58,6 +58,21 @@
     });
   }
 
+  // Manual Sales option A: verified LINE OA is available for inquiries.
+  // Product purchase, payment, and download remain closed until release-ready.
+  const VERIFIED_SUPPORT_URL = "https://lin.ee/wEsjx0X";
+  const manualStatus = document.getElementById("manualOrderStatus");
+  if (manualStatus) {
+    manualStatus.textContent = "เปิดรับสอบถามผ่าน LINE OA แล้ว • ยังไม่เปิดรับชำระเงินหรือส่งไฟล์ติดตั้ง";
+  }
+  document.querySelectorAll("[data-manual-plan]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const url = new URL(VERIFIED_SUPPORT_URL);
+      if (url.protocol !== "https:" || url.hostname !== "lin.ee") return;
+      window.open(url.href, "_blank", "noopener,noreferrer");
+    });
+  });
+
   // Replace the honest pre-launch placeholder with a real local MP4 only
   // once that file is supplied. No external player and no autoplay.
   if (DEMO_VIDEO_URL && demoVideo) {
