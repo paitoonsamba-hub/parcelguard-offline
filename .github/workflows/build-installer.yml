@@ -9,6 +9,7 @@ on:
       - feature/pc-webcam-smart-barcode-qa
       - fix/pc-spx-focus-and-bag-flow-qa
       - fix/pc-android-tracking-selector-qa
+      - feature/pc-dashboard-only-v1.4.0-qa
     paths:
       - pc-installer-source-v140.zip
       - updates/pc/pilot.json
@@ -60,39 +61,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'LINE OA support patch failed' }
           python installer-ci/add_line_support.py
           if ($LASTEXITCODE -ne 0) { throw 'LINE OA patch idempotence test failed' }
-      - name: Add and verify USB webcam selector in PC UI
+      - name: Retire legacy PC scan menu and open Dashboard by default
         shell: pwsh
         run: |
-          python installer-ci/add_camera_selector.py
-          if ($LASTEXITCODE -ne 0) { throw 'Camera selector patch failed' }
-          python installer-ci/add_camera_selector.py
-          if ($LASTEXITCODE -ne 0) { throw 'Camera selector idempotence failed' }
+          python installer-ci/disable_pc_scanner_ui.py
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only patch failed' }
+          python installer-ci/disable_pc_scanner_ui.py
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only patch is not idempotent' }
+          python -c "from pathlib import Path; s=Path('pc-installer/web/index.html').read_text(encoding='utf-8'); assert 'pg-dashboard-only-mode' in s; assert 'pg-dashboard-only-script' in s; assert 'scan-preview' in s"
+          if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only integrity assertion failed' }
           node --check pc-installer/web/app.js
-          if ($LASTEXITCODE -ne 0) { throw 'PC browser JS syntax failed' }
-      - name: Install local offline ZXing browser decoder and patch webcam tracking
-        shell: pwsh
-        run: |
-          npm install --prefix installer-ci/vendor-build --no-save --no-package-lock @zxing/browser@0.2.1 @zxing/library@0.23.0
-          if ($LASTEXITCODE -ne 0) { throw 'Failed to install pinned barcode decoder' }
-          node -e "const fs=require('fs');const s=fs.readFileSync('./installer-ci/vendor-build/node_modules/@zxing/browser/umd/zxing-browser.min.js','utf8'); if(s.length<10000||!s.includes('ZXingBrowser'))process.exit(1); console.log('Offline ZXing browser bundle present')"
-          if ($LASTEXITCODE -ne 0) { throw 'Offline barcode decoder not available' }
-          node --check installer-ci/android-tracking-selector.js
-          node --check installer-ci/webcam-smart-scan.js
-          python installer-ci/add_webcam_barcode.py
-          if ($LASTEXITCODE -ne 0) { throw 'Webcam smart scanner patch failed' }
-          python installer-ci/add_webcam_barcode.py
-          if ($LASTEXITCODE -ne 0) { throw 'Webcam scanner idempotence failed' }
-          node --check pc-installer/web/app.js
-          if ($LASTEXITCODE -ne 0) { throw 'Barcode scanner JavaScript syntax failed' }
-      - name: Add guarded PC bag open-close workflow
-        shell: pwsh
-        run: |
-          python installer-ci/add_bag_lifecycle.py
-          if ($LASTEXITCODE -ne 0) { throw 'Bag workflow patch failed' }
-          python installer-ci/add_bag_lifecycle.py
-          if ($LASTEXITCODE -ne 0) { throw 'Bag workflow idempotence failed' }
-          node --check pc-installer/web/app.js
-          if ($LASTEXITCODE -ne 0) { throw 'PC bag JavaScript syntax failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'PC browser JavaScript syntax check failed' }
       - name: Fix Windows SQLite backup handles (validated patch)
         shell: pwsh
         run: |
@@ -155,7 +134,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
-          name: ParcelGuard-PC-Setup-V1.4.0-ANDROID-SELECTOR-QA
+          name: ParcelGuard-PC-Setup-V1.4.0-DASHBOARD-ONLY-QA
           path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
           if-no-files-found: error
           retention-days: 14
