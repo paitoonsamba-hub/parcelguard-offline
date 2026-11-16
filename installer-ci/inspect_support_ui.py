@@ -18,6 +18,9 @@ for name in ("index.html", "login.html"):
             if "<script" in low or "fetch(" in low or "token" in low or "password" in low: continue
             cleaned = re.sub(r'<[^>]*>', ' ', line).strip()
             if cleaned and len(cleaned)<220:matches.append((i+1,cleaned[:160]))
-    print("redacted selected UI text lines:", matches[:65])
+    print("redacted selected UI text lines:", ascii(matches[:65]))
     for token in ("</body>", "</main>", "</footer>", "</nav>"):
         print("has",token,token in s.lower())
+    i=s.lower().rfind("</body>")
+    if i >= 0:
+        print("body end context:", ascii(s[max(0,i-1200):i+15]))
