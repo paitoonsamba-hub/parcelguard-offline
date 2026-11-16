@@ -115,7 +115,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
-          name: ParcelGuard-PC-Setup-V1.4.0-PILOT
+          name: ParcelGuard-PC-Setup-V1.4.0-SUPPORT-QA
           path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
           if-no-files-found: error
           retention-days: 14
