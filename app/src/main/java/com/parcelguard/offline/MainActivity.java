@@ -1331,6 +1331,18 @@ public class MainActivity extends AppCompatActivity {
         dialog.setOnDismissListener(d->player.stopPlayback());dialog.show();
     }
 
+    private void openLineSupport() {
+        final String supportUrl = "https://lin.ee/wEsjx0X";
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(supportUrl))
+                .addCategory(Intent.CATEGORY_BROWSABLE));
+        } catch (android.content.ActivityNotFoundException ex) {
+            ((android.content.ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE))
+                .setPrimaryClip(ClipData.newPlainText("ParcelGuard LINE OA", supportUrl));
+            Toast.makeText(this, "ไม่พบแอปสำหรับเปิดลิงก์ • คัดลอก LINE OA แล้ว", Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void showSettings(){pauseCamera();base("ตั้งค่ากล้อง / ส่งออกข้อมูล / ความเป็นส่วนตัว");
         root.addView(prominent("บัญชีผู้ใช้และสิทธิ์การใช้งาน",17,ORANGE));
         addButton("🔑 บัญชีและ License Key",()->{
@@ -1339,6 +1351,9 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
         root.addView(text("ตรวจสอบวันหมดอายุทดลองใช้ 7 วัน หรือกรอก License Key หลังชำระเงิน",12));
+        root.addView(prominent("ฝ่ายช่วยเหลือ ParcelGuard",17,ORANGE));
+        addButton("💬 ติดต่อพนักงานผ่าน LINE OA",this::openLineSupport);
+        root.addView(text("TARONIX 208 • สอบถามการใช้งาน ปัญหาการสแกน และ License\\nLINE OA: https://lin.ee/wEsjx0X\\nกรุณาอย่าส่งรหัสผ่านหรือ License Key เต็มให้ผู้อื่น",12));
         root.addView(prominent("วิดีโอคลิปอัตโนมัติรายพัสดุ",17,ORANGE));
         CheckBox automaticClip=new CheckBox(this);
         automaticClip.setTextColor(WHITE);
