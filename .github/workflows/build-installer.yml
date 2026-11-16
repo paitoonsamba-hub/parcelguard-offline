@@ -64,14 +64,14 @@ jobs:
       - name: Inspect real PC navigation structure
         shell: pwsh
         run: python installer-ci/inspect_dashboard_navigation.py
-      - name: Retire legacy PC scan menu and open Dashboard by default
+      - name: Remove PC scanner navigation/route and overlapping LINE floating action
         shell: pwsh
         run: |
           python installer-ci/disable_pc_scanner_ui.py
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only patch failed' }
           python installer-ci/disable_pc_scanner_ui.py
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only patch is not idempotent' }
-          python -c "from pathlib import Path; s=Path('pc-installer/web/index.html').read_text(encoding='utf-8'); assert 'pg-dashboard-only-mode' in s; assert 'pg-dashboard-only-script' in s; assert 'scan-preview' in s"
+          python -c "from pathlib import Path; h=Path('pc-installer/web/index.html').read_text(encoding='utf-8'); j=Path('pc-installer/web/app.js').read_text(encoding='utf-8'); l=Path('pc-installer/web/login.html').read_text(encoding='utf-8'); assert 'data-page=\\\"scanner\\\"' not in h; assert 'pg-support-float\\\"' not in h; assert 'pg-dashboard-only-source-v2' in h; assert 'pg-dashboard-only-nav-removed' in j; assert 'id=\\\"page-overview\\\" class=\\\"page active\\\"' in h; assert 'pg-support-inline' in h and 'pg-support-inline' in l; assert 'scan-preview' in h"
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only integrity assertion failed' }
           node --check pc-installer/web/app.js
           if ($LASTEXITCODE -ne 0) { throw 'PC browser JavaScript syntax check failed' }
@@ -137,7 +137,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
-          name: ParcelGuard-PC-Setup-V1.4.0-DASHBOARD-ONLY-QA
+          name: ParcelGuard-PC-Setup-V1.4.0-DASHBOARD-LINE-FIX-QA
           path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
           if-no-files-found: error
           retention-days: 14
