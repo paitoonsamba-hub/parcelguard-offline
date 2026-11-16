@@ -19,14 +19,14 @@ if 'id="pg-bag-open"' in html:
 anchor='<button class="btn btn-secondary" id="scan-camera" style="margin-top:12px">เปิดกล้องเว็บแคม</button>'
 assert html.count(anchor)==1, "Expected original PC camera button missing"
 panel='''<div id="pg-bag-lifecycle" style="margin:12px 0;padding:14px;background:#142534;border:1px solid #3e596c;border-radius:12px;display:grid;gap:9px">
-  <strong style="color:#ffac35">จัดการถุง — PC</strong>
+  <strong style="color:#ffac35">จัดการถุง — เปิดถุงใหม่จะสร้างรหัสอัตโนมัติ</strong>
   <div id="pg-bag-state" role="status" aria-live="polite" style="color:#e5eff9">ยังไม่ได้เปิดถุง</div>
   <div style="display:flex;gap:9px;flex-wrap:wrap">
     <button class="btn btn-primary" id="pg-bag-open" type="button">เปิดถุง</button>
     <button class="btn btn-secondary" id="pg-bag-close" type="button" disabled>ปิดถุง</button>
     <button class="btn btn-secondary" id="pg-bag-view" type="button">ดูรายการถุง</button>
   </div>
-  <small style="color:#aab9ca">เมื่อปิดถุงจะหยุดรับพัสดุเข้าถุงนี้บน PC เครื่องนี้ • ใช้หน้ารายการถุงเดิมสำหรับตรวจสอบและพิมพ์เอกสาร</small>
+  <small style="color:#aab9ca">เลขถุงสร้างอัตโนมัติรูปแบบเดียวกับ Android • การเปิด/ปิดในรุ่นนี้ยังเป็นสถานะของ PC เครื่องนี้ ไม่ใช่สถานะซิงก์ข้ามเครื่อง</small>
 </div>'''
 html=html.replace(anchor,panel+'\n'+anchor,1)
 
@@ -82,9 +82,18 @@ function pgBagSaved(result){
 }
 $('pg-bag-open').addEventListener('click',()=>{
  if(scannerBusy)return;
- const bag=$('scan-bag').value.trim(), carrier=$('scan-carrier').value;
- if(!bag||!carrier){toast('กรุณาเลือกขนส่งและกรอกรหัสถุงก่อนเปิดถุง');return}
+ const carrier=$('scan-carrier').value;
+ if(!carrier){toast('กรุณาเลือกขนส่งก่อนเปิดถุง');return}
  if(pgPcBag&&pgPcBag.open){toast('กรุณาปิดถุงเดิมก่อน');return}
+ // Android MainActivity.createNewBag(): BAG-yyyyMMdd-HHmmss-SSS.
+ // Generate a fresh PC bag identifier with the same ID format, never a fake
+ // BAG-PC-001 placeholder. Does not imply sharing Android's local SQLite bags.
+ const pad=(n,w=2)=>String(n).padStart(w,'0');
+ const now=new Date();
+ const bag='BAG-'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'-'+
+   pad(now.getHours())+pad(now.getMinutes())+pad(now.getSeconds())+'-'+pad(now.getMilliseconds(),3);
+ if(pgPcBag&&pgPcBag.bag===bag){toast('รหัสถุงซ้ำ กรุณาลองอีกครั้ง');return}
+ $('scan-bag').value=bag;
  pgPcBag={bag,carrier,count:0,open:true};
  pgBagPersist();pgBagRender();toast('เปิดถุง '+bag+' แล้ว');
 });
