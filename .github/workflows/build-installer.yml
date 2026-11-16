@@ -5,6 +5,7 @@ on:
     branches:
       - feature/windows-installer-v1.4.0
       - feature/pc-line-support-v1.4.1-pilot
+      - feature/pc-camera-selector-v1.4.0-qa
     paths:
       - pc-installer-source-v140.zip
       - updates/pc/pilot.json
@@ -46,6 +47,9 @@ jobs:
       - name: Read-only UI layout inspection for support contact
         shell: pwsh
         run: python installer-ci/inspect_support_ui.py
+      - name: Inspect original PC camera implementation
+        shell: pwsh
+        run: python installer-ci/inspect_camera_ui.py
       - name: Add LINE OA customer support to extracted PC web UI
         shell: pwsh
         run: |
