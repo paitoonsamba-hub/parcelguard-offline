@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/windows-installer-v1.4.0
+      - feature/pc-line-support-v1.4.1-pilot
     paths:
       - pc-installer-source-v140.zip
       - updates/pc/pilot.json
@@ -42,6 +43,9 @@ jobs:
           if (-not (Select-String -LiteralPath 'pc-installer/server.py' -Pattern "APP_VERSION = '1.4.0'" -SimpleMatch -Quiet)) {
             throw 'Wrong version of PC Station source; expected V1.4.0.'
           }
+      - name: Read-only UI layout inspection for support contact
+        shell: pwsh
+        run: python installer-ci/inspect_support_ui.py
       - name: Fix Windows SQLite backup handles (validated patch)
         shell: pwsh
         run: |
