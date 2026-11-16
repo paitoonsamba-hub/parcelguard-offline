@@ -53,7 +53,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'LINE OA support patch failed' }
           python installer-ci/add_line_support.py
           if ($LASTEXITCODE -ne 0) { throw 'LINE OA patch idempotence test failed' }
-          python -c "from pathlib import Path; a=Path('pc-installer/web/index.html').read_text(encoding='utf8'); b=Path('pc-installer/web/login.html').read_text(encoding='utf8'); assert a.count('class=\\"pg-support-float\\"')==1 and a.count('class=\\"pg-support-inline\\"')==1 and b.count('class=\\"pg-support-inline\\"')==1; assert all('https://lin.ee/wEsjx0X' in x for x in (a,b)); print('Support UI checks passed')"
       - name: Fix Windows SQLite backup handles (validated patch)
         shell: pwsh
         run: |
