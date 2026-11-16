@@ -74,3 +74,12 @@ def patch_login(s):
 
 write_if_needed(WEB / "index.html", patch_dashboard)
 write_if_needed(WEB / "login.html", patch_login)
+
+# Assertions run even on a second invocation (idempotence verification).
+dashboard=(WEB/"index.html").read_text(encoding="utf-8")
+login=(WEB/"login.html").read_text(encoding="utf-8")
+assert dashboard.count('class="pg-support-float"') == 1
+assert dashboard.count('class="pg-support-inline"') == 1
+assert login.count('class="pg-support-inline"') == 1
+assert all(URL in x for x in (dashboard,login))
+print("Support UI integrity checks passed")
