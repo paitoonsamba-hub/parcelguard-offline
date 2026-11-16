@@ -8,6 +8,7 @@ on:
       - feature/pc-camera-selector-v1.4.0-qa
       - feature/pc-webcam-smart-barcode-qa
       - fix/pc-spx-focus-and-bag-flow-qa
+      - fix/pc-android-tracking-selector-qa
     paths:
       - pc-installer-source-v140.zip
       - updates/pc/pilot.json
@@ -75,6 +76,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Failed to install pinned barcode decoder' }
           node -e "const fs=require('fs');const s=fs.readFileSync('./installer-ci/vendor-build/node_modules/@zxing/browser/umd/zxing-browser.min.js','utf8'); if(s.length<10000||!s.includes('ZXingBrowser'))process.exit(1); console.log('Offline ZXing browser bundle present')"
           if ($LASTEXITCODE -ne 0) { throw 'Offline barcode decoder not available' }
+          node --check installer-ci/android-tracking-selector.js
+          node --check installer-ci/webcam-smart-scan.js
           python installer-ci/add_webcam_barcode.py
           if ($LASTEXITCODE -ne 0) { throw 'Webcam smart scanner patch failed' }
           python installer-ci/add_webcam_barcode.py
@@ -152,7 +155,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
-          name: ParcelGuard-PC-Setup-V1.4.0-SPX-BAG-QA
+          name: ParcelGuard-PC-Setup-V1.4.0-ANDROID-SELECTOR-QA
           path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
           if-no-files-found: error
           retention-days: 14
