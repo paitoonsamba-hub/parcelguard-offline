@@ -46,7 +46,7 @@ html=html.replace('</head>',style+'\n</head>',1)
 
 # Remove LINE floating action from dashboard (it overlays Pro logout), while
 # leaving LINE's existing settings inline section and login support intact.
-float_re=r'\s*<a class="pg-support-float"\b[^>]*>.*?</a>'
+float_re=r'\s*<a class="pg-support-float"[^>]*>.*?</a>'
 html,n_float=re.subn(float_re,'',html,count=1,flags=re.S)
 assert n_float==1,"Expected LINE floating button not found"
 assert 'class="pg-support-inline"' in html,"Settings LINE contact must remain"
