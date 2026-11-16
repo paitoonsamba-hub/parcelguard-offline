@@ -1353,7 +1353,9 @@ public class MainActivity extends AppCompatActivity {
         root.addView(text("ตรวจสอบวันหมดอายุทดลองใช้ 7 วัน หรือกรอก License Key หลังชำระเงิน",12));
         root.addView(prominent("ฝ่ายช่วยเหลือ ParcelGuard",17,ORANGE));
         addButton("💬 ติดต่อพนักงานผ่าน LINE OA",this::openLineSupport);
-        root.addView(text("TARONIX 208 • สอบถามการใช้งาน ปัญหาการสแกน และ License\\nLINE OA: https://lin.ee/wEsjx0X\\nกรุณาอย่าส่งรหัสผ่านหรือ License Key เต็มให้ผู้อื่น",12));
+        root.addView(text("TARONIX 208 • สอบถามการใช้งาน ปัญหาการสแกน และ License",12));
+        root.addView(text("LINE OA: https://lin.ee/wEsjx0X",12));
+        root.addView(text("กรุณาอย่าส่งรหัสผ่านหรือ License Key เต็มให้ผู้อื่น",12));
         root.addView(prominent("วิดีโอคลิปอัตโนมัติรายพัสดุ",17,ORANGE));
         CheckBox automaticClip=new CheckBox(this);
         automaticClip.setTextColor(WHITE);
