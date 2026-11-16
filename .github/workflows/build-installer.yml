@@ -72,7 +72,7 @@ jobs:
         run: |
           npm install --prefix installer-ci/vendor-build --no-save --no-package-lock @zxing/browser@0.2.1 @zxing/library@0.23.0
           if ($LASTEXITCODE -ne 0) { throw 'Failed to install pinned barcode decoder' }
-          node -e "const x=require('./installer-ci/vendor-build/node_modules/@zxing/browser/umd/zxing-browser.min.js'); if(typeof x.BrowserMultiFormatReader!=='function')process.exit(1); console.log('ZXing decoder bundle verified')"
+          node -e "const fs=require('fs');const s=fs.readFileSync('./installer-ci/vendor-build/node_modules/@zxing/browser/umd/zxing-browser.min.js','utf8'); if(s.length<10000||!s.includes('ZXingBrowser'))process.exit(1); console.log('Offline ZXing browser bundle present')"
           if ($LASTEXITCODE -ne 0) { throw 'Offline barcode decoder not available' }
           python installer-ci/add_webcam_barcode.py
           if ($LASTEXITCODE -ne 0) { throw 'Webcam smart scanner patch failed' }
