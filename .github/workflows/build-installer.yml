@@ -61,6 +61,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'LINE OA support patch failed' }
           python installer-ci/add_line_support.py
           if ($LASTEXITCODE -ne 0) { throw 'LINE OA patch idempotence test failed' }
+      - name: Inspect real PC navigation structure
+        shell: pwsh
+        run: python installer-ci/inspect_dashboard_navigation.py
       - name: Retire legacy PC scan menu and open Dashboard by default
         shell: pwsh
         run: |
