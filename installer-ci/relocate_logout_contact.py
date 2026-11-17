@@ -14,7 +14,7 @@ app=jsfile.read_text(encoding="utf-8")
 marker="pg-contact-logout-v1"
 
 if marker in html:
-    assert "pg-contact-logout-v1" in app
+    assert "pg-logout-relocator" in html and "pg-settings-logout-area" in html
     print("Contact/logout relocation already installed")
     raise SystemExit(0)
 
