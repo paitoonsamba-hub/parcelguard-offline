@@ -10,6 +10,7 @@ on:
       - fix/pc-spx-focus-and-bag-flow-qa
       - fix/pc-android-tracking-selector-qa
       - feature/pc-dashboard-only-v1.4.0-qa
+      - feature/pc-contact-replace-logout-v1.4.0-qa
     paths:
       - pc-installer-source-v140.zip
       - updates/pc/pilot.json
@@ -75,6 +76,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Dashboard-only integrity assertion failed' }
           node --check pc-installer/web/app.js
           if ($LASTEXITCODE -ne 0) { throw 'PC browser JavaScript syntax check failed' }
+      - name: Relocate Pro logout to settings and add contact button
+        shell: pwsh
+        run: |
+          python installer-ci/relocate_logout_contact.py
+          if ($LASTEXITCODE -ne 0) { throw 'Pro logout relocation failed' }
+          python installer-ci/relocate_logout_contact.py
+          if ($LASTEXITCODE -ne 0) { throw 'Pro logout relocation is not idempotent' }
+          python installer-ci/verify_contact_logout.py
+          if ($LASTEXITCODE -ne 0) { throw 'Contact/Logout verification failed' }
       - name: Fix Windows SQLite backup handles (validated patch)
         shell: pwsh
         run: |
@@ -137,7 +147,7 @@ jobs:
           Get-FileHash $installer -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
         with:
-          name: ParcelGuard-PC-Setup-V1.4.0-DASHBOARD-LINE-FIX-QA
+          name: ParcelGuard-PC-Setup-V1.4.0-CONTACT-LOGOUT-QA
           path: pc-installer/output/ParcelGuard-PC-Setup-V1.4.0-PILOT.exe
           if-no-files-found: error
           retention-days: 14
