@@ -124,7 +124,7 @@ old_append="document.body.appendChild(out);refresh();setInterval("
 new_append="(document.getElementById('pg-settings-logout-area')||document.body).appendChild(out);refresh();setInterval("
 assert app.count(old_append)==1, "Source logout injection changed"
 app=app.replace(old_append,new_append,1)
-app="/* pg-logout-direct-in-settings */\\n"+app
+app="/* pg-logout-direct-in-settings */\n"+app
 assert 'position:fixed;right:14px;bottom:14px;z-index:1000' not in app
 jsfile.write_text(app,encoding="utf-8")
 print("Pro logout source now appends directly under Settings; LINE contact remains at lower right")
