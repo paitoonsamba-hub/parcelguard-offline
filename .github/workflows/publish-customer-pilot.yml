@@ -1,0 +1,96 @@
+name: Publish verified ParcelGuard Customer Pilot assets
+on:
+  push:
+    branches:
+      - feature/customer-pilot-release-20261117
+    paths:
+      - .github/workflows/publish-customer-pilot.yml
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: parcelguard-customer-pilot-20261117
+  cancel-in-progress: false
+jobs:
+  release-existing-tested-binaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: customer-pilot-2026-11-17-r1
+      ANDROID_RUN: "43812886408"
+      PC_RUN: "44018733985"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact tested source workflow runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,subprocess,os
+          required=[
+            (os.environ['ANDROID_RUN'],'feature/android-line-support-v1.5','89e2b8c90f3084c457e112a9088d821edd2be89d'),
+            (os.environ['PC_RUN'],'feature/pc-contact-replace-logout-v1.4.0-qa','e77caf667a2c0d1c4574e655bc06c4454887e0d2')
+          ]
+          for run,branch,sha in required:
+            info=json.loads(subprocess.check_output(['gh','api',f'repos/{os.environ["GH_REPO"]}/actions/runs/{run}'],text=True))
+            assert info['status']=='completed' and info['conclusion']=='success',(run,'Not successful')
+            assert info['head_branch']==branch and info['head_sha']==sha,(run,'Build identity changed')
+            print('Verified',run,branch,sha)
+          PY
+      - name: Download exact tested APK and PC setup artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/android staging/windows dist
+          gh run download "$ANDROID_RUN" --repo "$GH_REPO" --name ParcelGuard-Offline-APK --dir staging/android
+          gh run download "$PC_RUN" --repo "$GH_REPO" --name ParcelGuard-PC-Setup-V1.4.0-CONTACT-LOGOUT-QA --dir staging/windows
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,hashlib
+          android=list(Path('staging/android').rglob('*.apk'))
+          windows=list(Path('staging/windows').rglob('*.exe'))
+          assert len(android)==1 and android[0].name=='app-debug.apk',f'Unexpected Android assets: {android}'
+          assert len(windows)==1 and windows[0].name=='ParcelGuard-PC-Setup-V1.4.0-PILOT.exe',f'Unexpected PC assets: {windows}'
+          names=[(android[0],'ParcelGuard-Android-Customer-Pilot-DEBUG.apk'),
+                 (windows[0],'ParcelGuard-PC-Customer-Pilot-V1.4.0.exe')]
+          sums=[]
+          for source,name in names:
+            target=Path('dist')/name
+            shutil.copyfile(source,target)
+            assert target.stat().st_size>1024*1024
+            digest=hashlib.sha256(target.read_bytes()).hexdigest()
+            sums.append(f'{digest}  {name}')
+            print('FILE',name,'SHA256',digest,'bytes',target.stat().st_size)
+          Path('dist/SHA256SUMS.txt').write_text('\n'.join(sums)+'\n')
+          PY
+      - name: Publish one permanent customer pilot prerelease (no overwrite)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release tag already exists, refusing to silently replace tested binaries."
+            exit 1
+          fi
+          cat > /tmp/pilot-notes.md <<'EOF'
+          ## ParcelGuard Customer Pilot — controlled tester distribution
+
+          สำหรับลูกค้าที่ได้รับอนุมัติทดลองทาง LINE OA เท่านั้น: https://lin.ee/wEsjx0X
+
+          - **Android:** file `ParcelGuard-Android-Customer-Pilot-DEBUG.apk` is a debug-signed Android build from workflow 43812886408, branch `feature/android-line-support-v1.5`, commit `89e2b8c90f3084c457e112a9088d821edd2be89d`. **Not a signed production release**; it may not support seamless upgrade to a future production APK.
+          - **Windows PC:** file `ParcelGuard-PC-Customer-Pilot-V1.4.0.exe` is the verified built installer artifact from workflow 44018733985, branch `feature/pc-contact-replace-logout-v1.4.0-qa`, commit `e77caf667a2c0d1c4574e655bc06c4454887e0d2`. PC scanning was retired; use Android for scanning.
+          - See `SHA256SUMS.txt` to verify downloads. No app binaries have been changed or rebuilt by this workflow.
+          - **Pre-release:** functionality tested by project owner, not yet a broad commercial rollout. Keep backups before upgrading; do not uninstall the Android app to upgrade unless data has been backed up.
+          - Access to a public download link is **not** authorization to use the app. Accounts/license entitlements must be issued separately by the owner. This release does not activate automatic 7-day trials, payments, or self-service registrations.
+          - Security reminder: never share passwords or full license keys in LINE chats.
+          EOF
+          gh release create "$RELEASE_TAG" dist/ParcelGuard-Android-Customer-Pilot-DEBUG.apk dist/ParcelGuard-PC-Customer-Pilot-V1.4.0.exe dist/SHA256SUMS.txt \
+            --repo "$GH_REPO" --target parcelguard-website --title "ParcelGuard Customer Pilot — 17 Nov 2026" \
+            --notes-file /tmp/pilot-notes.md --prerelease
+      - name: Verify published asset count and release state
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" --jq '{tag_name,draft,prerelease,assets:[.assets[].name]}' 
