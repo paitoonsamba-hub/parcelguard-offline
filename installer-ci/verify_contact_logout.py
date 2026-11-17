@@ -13,6 +13,10 @@ assert 'area.appendChild(el)' in h
 assert 'class="pg-support-float"' not in h
 assert 'data-page="scanner"' not in h
 assert 'pg-dashboard-only-nav-removed' in j
+assert 'pg-logout-direct-in-settings' in j
+assert "document.getElementById('pg-settings-logout-area')" in j
+assert 'position:fixed;right:14px;bottom:14px;z-index:1000' not in j
+assert 'document.body.appendChild(out)' not in j
 assert 'id="page-overview" class="page active"' in h
 assert 'pg-support-inline' in h
 assert 'id="scan-preview"' in h
