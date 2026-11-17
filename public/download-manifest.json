@@ -3,18 +3,18 @@
   "updatedAt": "2026-11-17",
   "products": {
     "android": {
-      "enabled": false,
-      "version": null,
-      "downloadUrl": null,
-      "sha256": null,
-      "status": "ยังไม่มี APK รุ่นส่งมอบที่ผ่านการตรวจสอบ"
+      "enabled": true,
+      "version": "Customer Pilot 2026.11.17 (Debug)",
+      "downloadUrl": "https://github.com/paitoonsamba-hub/parcelguard-offline/releases/download/customer-pilot-2026-11-17-r1/ParcelGuard-Android-Customer-Pilot-DEBUG.apk",
+      "sha256": "027baa5dd64182d138c80f7fbd499df700acb893e0c9c934754333c563bdb873",
+      "status": "พร้อมสำหรับลูกค้าทดลองที่ได้รับอนุมัติ (Debug APK)"
     },
     "windows": {
-      "enabled": false,
-      "version": null,
-      "downloadUrl": null,
-      "sha256": null,
-      "status": "ยังไม่มี EXE รุ่นส่งมอบที่ผ่านการตรวจสอบ"
+      "enabled": true,
+      "version": "1.4.0 Customer Pilot",
+      "downloadUrl": "https://github.com/paitoonsamba-hub/parcelguard-offline/releases/download/customer-pilot-2026-11-17-r1/ParcelGuard-PC-Customer-Pilot-V1.4.0.exe",
+      "sha256": "9526a465e540d405af9321dd7d30c39075d8f2329324da5c22d7ba5cbf355a38",
+      "status": "พร้อมสำหรับลูกค้าทดลองที่ได้รับอนุมัติ"
     }
   }
 }
