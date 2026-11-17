@@ -46,7 +46,7 @@ async function render(){
       continue;
     }
     version.textContent="รุ่น "+entry.version;
-    status.textContent="ไฟล์รุ่นส่งมอบที่ทีมงานยืนยันแล้ว • โปรดใช้สิทธิ์ที่ได้รับอนุมัติ";
+    status.textContent=(typeof entry.status==="string" && entry.status.trim()) ? entry.status : "ไฟล์รุ่นส่งมอบที่ทีมงานยืนยันแล้ว • โปรดใช้สิทธิ์ที่ได้รับอนุมัติ";
     link.href=entry.downloadUrl;
     link.target="_blank";
     link.rel="noopener noreferrer";
