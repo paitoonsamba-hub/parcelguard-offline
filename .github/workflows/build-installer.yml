@@ -49,6 +49,9 @@ jobs:
           if (-not (Select-String -LiteralPath 'pc-installer/server.py' -Pattern "APP_VERSION = '1.4.0'" -SimpleMatch -Quiet)) {
             throw 'Wrong version of PC Station source; expected V1.4.0.'
           }
+      - name: Diagnose actual Pro logout injection source
+        shell: pwsh
+        run: python installer-ci/diagnose_logout_origin.py
       - name: Read-only UI layout inspection for support contact
         shell: pwsh
         run: python installer-ci/inspect_support_ui.py
