@@ -9,7 +9,7 @@ const robots = read("../public/robots.txt");
 assert.match(html, /<html lang="th">/);
 assert.match(html, /<meta name="viewport"/);
 assert.match(html, /<meta name="robots" content="noindex,nofollow">/);
-for (const name of ["SPX","LEX-All","490","990","7 วัน","demoVideo","trialDialog"]) {
+for (const name of ["SPX","LEX-All","490","990","demoVideo","data-request-demo","https://lin.ee/wEsjx0X"]) {
   assert.ok(html.includes(name), "Missing required site content: "+name);
 }
 for (const anchor of ["problem","features","how-it-works","pricing","faq","demo"]) {
@@ -26,15 +26,20 @@ for (const term of ["สแกนได้หลายขนส่ง","แย�
   "ลงชื่อผู้รับ","ตัวอย่างหน้าจอและข้อมูลจำลอง"]) {
   assert.ok(html.includes(term),"Missing solution messaging: "+term);
 }
-assert.ok(html.includes("7 วัน") && !html.includes("14 วัน"),
-  "Trial offer must remain 7 days");
+assert.equal((html.match(/data-request-demo/g)||[]).length,5,"Expected five selected-pilot CTAs");
+assert.ok(!html.includes("ทดลองใช้ฟรี 7 วัน") && !html.includes("COMING SOON"),
+  "The site must not claim immediate trial availability");
+assert.ok(!html.includes("trialDialog") && !html.includes("data-trial"),
+  "Legacy Coming Soon modal must be absent");
+assert.match(html,/เปิดรับผู้สนใจทดลองแบบคัดเลือก/);
 assert.ok(existsSync(new URL("../public/hero-v2.css",import.meta.url)),
   "Missing hero responsive styles");
 const heroCss=read("../public/hero-v2.css");
 assert.match(heroCss,/@media\(max-width:780px\)/);
 assert.match(heroCss,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 assert.match(js,/DEMO_VIDEO_URL = ""/);
-assert.match(js,/\.showModal\(\)/);
+assert.match(js,/\[data-request-demo\]/);
+assert.match(js,/https:\/\/lin\.ee\/wEsjx0X/);
 assert.ok(!html.includes('action="https://'),"Unexpected live registration form");
 assert.ok(!html.includes("ซื้อเลย"),"Unexpected active checkout text");
 assert.match(css,/@media \(max-width:650px\)/);

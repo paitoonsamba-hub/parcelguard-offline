@@ -8,7 +8,6 @@
   const DEMO_VIDEO_URL = "";
   const menuButton = document.getElementById("menuToggle");
   const menu = document.getElementById("navLinks");
-  const trialDialog = document.getElementById("trialDialog");
   const footerYear = document.getElementById("footerYear");
   const demoVideo = document.getElementById("demoVideo");
 
@@ -41,37 +40,26 @@
     });
   }
 
-  document.querySelectorAll("[data-trial]").forEach((button) => {
-    button.addEventListener("click", () => {
-      closeMenu();
-      if (trialDialog && typeof trialDialog.showModal === "function") {
-        trialDialog.showModal();
-      } else {
-        window.alert("ParcelGuard กำลังเตรียมระบบทดลองใช้ฟรี 7 วัน ยังไม่เปิดรับสมัครหรือชำระเงินจริง");
-      }
-    });
+  // Selected-pilot onboarding. No registration, payment, or APK download here.
+  const VERIFIED_SUPPORT_URL = "https://lin.ee/wEsjx0X";
+  function openVerifiedLine() {
+    closeMenu();
+    const link = document.createElement("a");
+    link.href = VERIFIED_SUPPORT_URL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  document.querySelectorAll("[data-request-demo], [data-manual-plan]").forEach((button) => {
+    button.addEventListener("click", openVerifiedLine);
   });
 
-  if (trialDialog) {
-    trialDialog.addEventListener("click", (event) => {
-      if (event.target === trialDialog) trialDialog.close();
-    });
-  }
-
-  // Manual Sales option A: verified LINE OA is available for inquiries.
-  // Product purchase, payment, and download remain closed until release-ready.
-  const VERIFIED_SUPPORT_URL = "https://lin.ee/wEsjx0X";
   const manualStatus = document.getElementById("manualOrderStatus");
   if (manualStatus) {
-    manualStatus.textContent = "เปิดรับสอบถามผ่าน LINE OA แล้ว • ยังไม่เปิดรับชำระเงินหรือส่งไฟล์ติดตั้ง";
+    manualStatus.textContent = "เปิดรับขอทดลองใช้งานแบบคัดเลือกผ่าน LINE OA • ทีมงานติดต่อกลับเป็นรายกรณี";
   }
-  document.querySelectorAll("[data-manual-plan]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const url = new URL(VERIFIED_SUPPORT_URL);
-      if (url.protocol !== "https:" || url.hostname !== "lin.ee") return;
-      window.open(url.href, "_blank", "noopener,noreferrer");
-    });
-  });
 
   // Replace the honest pre-launch placeholder with a real local MP4 only
   // once that file is supplied. No external player and no autoplay.
