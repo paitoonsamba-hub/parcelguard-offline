@@ -14,7 +14,7 @@ app=jsfile.read_text(encoding="utf-8")
 marker="pg-contact-logout-v1"
 
 if marker in html:
-    assert "pg-logout-relocator" in html and "pg-settings-logout-area" in html
+    assert "pg-logout-relocator" in html and "pg-settings-logout-area" in html and "pg-logout-direct-in-settings" in app
     print("Contact/logout relocation already installed")
     raise SystemExit(0)
 
@@ -113,5 +113,18 @@ assert html.count('id="pg-contact-fixed"')==1
 assert html.count('id="pg-settings-logout-area"')==1
 assert html.count('id="pg-logout-relocator"')==1
 page.write_text(html,encoding="utf-8")
-# app.js is deliberately untouched: preserve navigation, login and sync.
-print("Pro logout now relocates to Settings, lower-right contact leads to verified LINE OA")
+# The original app.js builds a Pro logout button inside its authenticated
+# startup callback and appends it directly to body with fixed positioning.
+# Change the source rather than relying on a DOM observer after render.
+old_style="out.style='position:fixed;right:14px;bottom:14px;z-index:1000;padding:10px 15px;background:#243748;color:white;border:1px solid #486075;border-radius:8px;cursor:pointer'"
+new_style="out.style='padding:10px 15px;background:#243748;color:white;border:1px solid #486075;border-radius:8px;cursor:pointer'"
+assert app.count(old_style)==1, "Source logout fixed positioning changed"
+app=app.replace(old_style,new_style,1)
+old_append="document.body.appendChild(out);refresh();setInterval("
+new_append="(document.getElementById('pg-settings-logout-area')||document.body).appendChild(out);refresh();setInterval("
+assert app.count(old_append)==1, "Source logout injection changed"
+app=app.replace(old_append,new_append,1)
+app="/* pg-logout-direct-in-settings */\\n"+app
+assert 'position:fixed;right:14px;bottom:14px;z-index:1000' not in app
+jsfile.write_text(app,encoding="utf-8")
+print("Pro logout source now appends directly under Settings; LINE contact remains at lower right")
