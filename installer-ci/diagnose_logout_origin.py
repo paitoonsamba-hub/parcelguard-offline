@@ -6,4 +6,4 @@ for p in Path("pc-installer").rglob("*"):
  matches=[(i,line) for i,line in enumerate(s.splitlines(),1) if re.search(r'logout|log.out|ออกจากระบบ|position:\s*fixed|8765',line,re.I)]
  if matches:
   print("SOURCE",p,"size",len(s),"matches",len(matches))
-  for i,line in matches[:30]: print("line",i,repr(line[:650]))
+  for i,line in matches[:30]: print("line",i,ascii(line[:650]))
