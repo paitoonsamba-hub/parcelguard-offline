@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-17",
+  "products": {
+    "android": {
+      "enabled": false,
+      "version": null,
+      "downloadUrl": null,
+      "sha256": null,
+      "status": "ยังไม่มี APK รุ่นส่งมอบที่ผ่านการตรวจสอบ"
+    },
+    "windows": {
+      "enabled": false,
+      "version": null,
+      "downloadUrl": null,
+      "sha256": null,
+      "status": "ยังไม่มี EXE รุ่นส่งมอบที่ผ่านการตรวจสอบ"
+    }
+  }
+}
